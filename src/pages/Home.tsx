@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { Place, ViewMode, Filters, PlaceType, Vibe, UseCase } from '@/types'
 import { useTranslation } from 'react-i18next'
 import { Header } from '@/components/layout/Header'
@@ -6,49 +7,83 @@ import { FilterBar } from '@/components/filters/FilterBar'
 import { PlaceCard } from '@/components/place/PlaceCard'
 import { DevSpotMap } from '@/components/map/DevSpotMap'
 import { SubmitPlaceModal } from '@/components/place/SubmitPlaceModal'
+import { CmdPalette } from '@/components/cmd/CmdPalette'
 import { filterPlaces } from '@/lib/utils/filters'
-import { IconMapOff } from '@tabler/icons-react'
-
-const MOCK_PLACES: Place[] = [
-  { id: '1', name: 'Café Marginal', type: 'café', vibe: 'calm', price_range: 2, hours: '07–22', lat: -8.838, lng: 13.234, address: '', use_cases: ['coding', 'meetings'], tags: ['wifi', 'outlets'], verified: true, submitted_by: 'dev_kafu', created_at: '', updated_at: '' },
-  { id: '2', name: 'The Hub Luanda', type: 'cowork', vibe: 'modern', price_range: 3, hours: '08–20', lat: -8.842, lng: 13.238, address: '', use_cases: ['hackathon', 'cowork'], tags: ['wifi', 'AC', 'rooms'], verified: true, submitted_by: 'nzari.dev', created_at: '', updated_at: '' },
-  { id: '3', name: 'Esplanada Boa Vista', type: 'esplanada', vibe: 'retro', price_range: 1, hours: '09–18', lat: -8.836, lng: 13.232, address: '', use_cases: ['coding', 'chill'], tags: ['quiet', 'retro'], verified: false, submitted_by: 'mwamba_0x', created_at: '', updated_at: '' },
-  { id: '4', name: 'Novaspace Talatona', type: 'cowork', vibe: 'modern', price_range: 3, hours: '08–21', lat: -8.910, lng: 13.190, address: '', use_cases: ['hackathon', 'cowork', 'meetings'], tags: ['projector', 'AC'], verified: true, submitted_by: 'devdario', created_at: '', updated_at: '' },
-  { id: '5', name: 'Café do Kinaxixi', type: 'café', vibe: 'retro', price_range: 1, hours: '06–17', lat: -8.830, lng: 13.240, address: '', use_cases: ['chill', 'coding'], tags: ['affordable', 'quiet'], verified: false, submitted_by: 'frontend_kai', created_at: '', updated_at: '' },
-]
+import { fetchPlaces, createPlace, uploadPhoto } from '@/lib/supabase/places'
+import { useAuth } from '@/lib/supabase/auth'
+import { useTheme } from '@/lib/hooks/useTheme'
+import {
+  IconMapOff,
+  IconSearch,
+  IconPlus,
+  IconLogin,
+  IconTerminal2,
+} from '@tabler/icons-react'
+import { Loader2 } from 'lucide-react'
 
 const DEFAULT_FILTERS: Filters = { vibe: 'all', use: 'all', type: 'all' }
 
 export function Home() {
   const { t } = useTranslation()
-  const [places, setPlaces] = useState<Place[]>(MOCK_PLACES)
+  const { user } = useAuth()
+  const { theme } = useTheme()
+  const navigate = useNavigate()
+
+  const [places, setPlaces] = useState<Place[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [view, setView] = useState<ViewMode>('split')
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null)
   const [showModal, setShowModal] = useState(false)
+  const [showCmd, setShowCmd] = useState(false)
+
+  useEffect(() => {
+    fetchPlaces()
+      .then(setPlaces)
+      .catch((err) => setLoadError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowCmd((p) => !p)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const filtered = filterPlaces(places, filters, searchQuery)
 
-  const handleSubmit = (partial: Partial<Place>) => {
-    const newPlace: Place = {
-      id: Date.now().toString(),
-      name: partial.name || 'Novo Lugar',
-      type: (partial.type as PlaceType) || 'café',
-      vibe: (partial.vibe as Vibe) || 'calm',
-      price_range: (partial.price_range as 1 | 2 | 3) || 2,
-      hours: partial.hours || '—',
-      lat: -8.84 + Math.random() * 0.06,
-      lng: 13.21 + Math.random() * 0.05,
-      address: '',
-      use_cases: (partial.use_cases as UseCase[]) || [],
-      tags: partial.tags || [],
-      verified: false,
-      submitted_by: 'you',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+  const handleSubmit = useCallback(
+    async (partial: Partial<Place>, photoFiles: File[]) => {
+      if (!user) return
+      const lat = -8.84 + Math.random() * 0.06
+      const lng = 13.21 + Math.random() * 0.05
+      const created = await createPlace({ ...partial, lat, lng }, user.id)
+      if (created && photoFiles.length > 0) {
+        await Promise.all(
+          photoFiles.map((f, i) =>
+            uploadPhoto('place-photos', f, `${created.id}/${i}-${f.name}`)
+          )
+        )
+      }
+      const updated = await fetchPlaces()
+      setPlaces(updated)
+    },
+    [user]
+  )
+
+  const openSubmit = () => {
+    if (!user) {
+      navigate('/signin')
+      return
     }
-    setPlaces((prev) => [newPlace, ...prev])
+    setShowModal(true)
   }
 
   return (
@@ -56,10 +91,11 @@ export function Home() {
       <Header
         view={view}
         onViewChange={setView}
-        onSubmitClick={() => setShowModal(true)}
+        onSubmitClick={openSubmit}
         onSearchChange={setSearchQuery}
         searchQuery={searchQuery}
         resultCount={filtered.length}
+        onCmdOpen={() => setShowCmd(true)}
       />
       <div className="px-[18px] py-2.5 border-b border-border bg-surf">
         <FilterBar filters={filters} onFilterChange={setFilters} />
@@ -71,10 +107,33 @@ export function Home() {
             style={{ width: view === 'list' ? '100%' : '330px' }}
             onClick={() => setSelectedPlace(null)}
           >
-            {filtered.length === 0 ? (
-              <div className="p-9 text-center text-[#333] text-[12px]">
-                <IconMapOff size={28} className="mx-auto mb-2" />
-                {t('place.no_results')}
+            {loading ? (
+              <div className="flex items-center justify-center h-40">
+                <Loader2 className="size-5 animate-spin text-muted" />
+              </div>
+            ) : loadError ? (
+              <div className="p-9 text-center">
+                <IconTerminal2 size={28} className="mx-auto mb-2 text-muted" />
+                <p className="text-[11px] text-muted mb-3">{loadError}</p>
+                <button
+                  onClick={() => { setLoading(true); setLoadError(null); fetchPlaces().then(setPlaces).catch((e) => setLoadError(e.message)).finally(() => setLoading(false)) }}
+                  className="text-[11px] text-txt border border-border rounded-[4px] px-3 py-1 bg-surf2 cursor-pointer"
+                >
+                  retry
+                </button>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="p-9 text-center">
+                <IconMapOff size={32} className="mx-auto mb-3 text-dim" />
+                <p className="text-[12px] text-muted mb-1">{t('place.no_results')}</p>
+                <p className="text-[10px] text-dim mb-4">try adjusting filters or search</p>
+                <button
+                  onClick={openSubmit}
+                  className="inline-flex items-center gap-1.5 text-[11px] text-txt border border-border rounded-[4px] px-3 py-1.5 bg-surf2 cursor-pointer"
+                >
+                  <IconPlus size={12} />
+                  add the first spot
+                </button>
               </div>
             ) : (
               filtered.map((place) => (
@@ -93,6 +152,7 @@ export function Home() {
         )}
         {view !== 'list' && (
           <DevSpotMap
+            theme={theme}
             places={filtered}
             selectedPlace={selectedPlace}
             onSelectPlace={setSelectedPlace}
@@ -103,6 +163,15 @@ export function Home() {
         open={showModal}
         onClose={() => setShowModal(false)}
         onSubmit={handleSubmit}
+      />
+      <CmdPalette
+        open={showCmd}
+        onClose={() => setShowCmd(false)}
+        onSubmitClick={openSubmit}
+        view={view}
+        onViewChange={setView}
+        filters={filters}
+        onFilterChange={setFilters}
       />
     </div>
   )
