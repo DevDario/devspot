@@ -28,6 +28,7 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
   const [lng, setLng] = useState<number | null>(null)
   const [locating, setLocating] = useState(false)
   const [locError, setLocError] = useState<string | null>(null)
+  const [useLocation, setUseLocation] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   if (!open) return null
@@ -43,6 +44,18 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
     )
   }
 
+  const toggleLocation = () => {
+    if (useLocation) {
+      setUseLocation(false)
+      setLat(null)
+      setLng(null)
+      setLocError(null)
+    } else {
+      setUseLocation(true)
+      getLocation()
+    }
+  }
+
   const toggleUse = (u: UseCase) => {
     setUseCases((prev) => (prev.includes(u) ? prev.filter((x) => x !== u) : [...prev, u]))
   }
@@ -56,7 +69,7 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
 
   const reset = () => {
     setStep(0); setName(''); setType('café'); setHours(''); setVibe('calm')
-    setUseCases([]); setPrice(2); setTags(''); setNotes(''); setPhotos([]); setLat(null); setLng(null); setLocError(null)
+    setUseCases([]); setPrice(2); setTags(''); setNotes(''); setPhotos([]); setLat(null); setLng(null); setLocError(null); setUseLocation(false)
   }
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,20 +132,31 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
               </div>
               <div>
                 <label className="fld-lbl">LOCATION</label>
-                {lat !== null && lng !== null ? (
-                  <div className="text-[10px] text-muted bg-surf2 border border-border rounded-[5px] px-3 py-2">
-                    {lat.toFixed(6)}, {lng.toFixed(6)}
-                  </div>
-                ) : (
+                <div className="flex items-center justify-between bg-surf2 border border-border rounded-[5px] px-3 py-2">
+                  <span className="text-[11px] text-muted flex items-center gap-2">
+                    <IconMapPin size={14} />
+                    use my current location
+                  </span>
                   <button
                     type="button"
-                    onClick={getLocation}
+                    onClick={toggleLocation}
                     disabled={locating}
-                    className="flex items-center gap-2 text-[11px] text-muted border border-border rounded-[5px] px-3 py-2 bg-surf2 cursor-pointer w-full hover:text-txt transition-colors disabled:opacity-40"
+                    className={`text-[10px] cursor-pointer rounded-[3px] px-2.5 py-0.5 transition-colors disabled:opacity-40 ${
+                      useLocation
+                        ? 'bg-[rgba(220,220,220,0.08)] border border-[#aaa] text-[#ddd]'
+                        : 'bg-transparent border border-border text-dim'
+                    }`}
                   >
-                    <IconMapPin size={14} />
-                    {locating ? 'getting location…' : 'use my current location'}
+                    {useLocation ? 'ON' : 'OFF'}
                   </button>
+                </div>
+                {useLocation && lat !== null && lng !== null && (
+                  <div className="text-[10px] text-muted mt-1">
+                    {lat.toFixed(6)}, {lng.toFixed(6)}
+                  </div>
+                )}
+                {useLocation && locating && (
+                  <div className="text-[10px] text-muted mt-1">getting location…</div>
                 )}
                 {locError && <p className="text-[10px] text-red-400 mt-1">{locError}</p>}
               </div>
