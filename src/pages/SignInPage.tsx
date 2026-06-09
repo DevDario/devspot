@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { IconKeyboard } from '@tabler/icons-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/supabase/auth'
 
 export function SignInPage() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -29,35 +31,35 @@ export function SignInPage() {
             <IconKeyboard size={18} className="text-[#ccc]" />
           </div>
           <div>
-            <div className="text-[18px] text-[#e8e8e8] leading-tight">DevSpot</div>
-            <div className="text-[10px] text-dim">// places devs actually go to</div>
+            <div className="text-[18px] text-[#e8e8e8] leading-tight">{t('nav.title')}</div>
+            <div className="text-[10px] text-dim">{t('nav.subtitle')}</div>
           </div>
         </div>
 
         <div className="bg-surf border border-border rounded-[10px] p-6">
-          <h1 className="text-[16px] text-txt mb-1">sign in</h1>
-          <p className="text-[11px] text-muted mb-5">Enter your credentials to continue</p>
+          <h1 className="text-[16px] text-txt mb-1">{t('auth.sign_in_title')}</h1>
+          <p className="text-[11px] text-muted mb-5">{t('auth.sign_in_desc')}</p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
-              <label className="fld-lbl">EMAIL</label>
+              <label className="fld-lbl">{t('auth.email')}</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="dev@example.com" required />
             </div>
             <div>
-              <label className="fld-lbl">PASSWORD</label>
+              <label className="fld-lbl">{t('auth.password')}</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
             </div>
 
             {error && <p className="text-[11px] text-red-400">{error}</p>}
 
             <button type="submit" className="bg-[#ddd] text-[#000] border-none rounded-[5px] py-[9px] text-[12px] cursor-pointer mt-1">
-              sign in
+              {t('auth.sign_in')}
             </button>
           </form>
 
           <div className="flex items-center gap-3 my-4">
             <div className="flex-1 h-[1px] bg-border" />
-            <span className="text-[10px] text-dim">or</span>
+            <span className="text-[10px] text-dim">{t('auth.or')}</span>
             <div className="flex-1 h-[1px] bg-border" />
           </div>
 
@@ -66,12 +68,12 @@ export function SignInPage() {
             className="w-full bg-surf2 border border-border text-muted rounded-[5px] py-[9px] text-[11px] cursor-pointer flex items-center justify-center gap-2"
           >
             <GoogleIcon />
-            continue with Google
+            {t('auth.google')}
           </button>
 
           <p className="text-[11px] text-dim text-center mt-4">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-[#bbb] underline">sign up</Link>
+            {t('auth.no_account')}{' '}
+            <Link to="/signup" className="text-[#bbb] underline">{t('auth.sign_up')}</Link>
           </p>
         </div>
       </div>

@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { IconKeyboard } from '@tabler/icons-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/supabase/auth'
 
 export function SignUpPage() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -27,15 +29,15 @@ export function SignUpPage() {
       <div className="min-h-screen bg-bg flex items-center justify-center p-4">
         <div className="bg-surf border border-border rounded-[10px] p-6 max-w-sm w-full text-center">
           <div className="text-[24px] mb-2">✓</div>
-          <h1 className="text-[16px] text-txt mb-2">Check your email</h1>
+          <h1 className="text-[16px] text-txt mb-2">{t('auth.check_email')}</h1>
           <p className="text-[11px] text-muted mb-4">
-            We sent a confirmation link to <strong className="text-txt">{email}</strong>
+            {t('auth.check_email_desc')} <strong className="text-txt">{email}</strong>
           </p>
           <button
             onClick={() => navigate('/signin')}
             className="bg-[#ddd] text-[#000] border-none rounded-[5px] px-4 py-2 text-[12px] cursor-pointer"
           >
-            go to sign in
+            {t('auth.go_to_signin')}
           </button>
         </div>
       </div>
@@ -50,35 +52,35 @@ export function SignUpPage() {
             <IconKeyboard size={18} className="text-[#ccc]" />
           </div>
           <div>
-            <div className="text-[18px] text-[#e8e8e8] leading-tight">DevSpot</div>
-            <div className="text-[10px] text-dim">// places devs actually go to</div>
+            <div className="text-[18px] text-[#e8e8e8] leading-tight">{t('nav.title')}</div>
+            <div className="text-[10px] text-dim">{t('nav.subtitle')}</div>
           </div>
         </div>
 
         <div className="bg-surf border border-border rounded-[10px] p-6">
-          <h1 className="text-[16px] text-txt mb-1">create account</h1>
-          <p className="text-[11px] text-muted mb-5">Join the community</p>
+          <h1 className="text-[16px] text-txt mb-1">{t('auth.sign_up_title')}</h1>
+          <p className="text-[11px] text-muted mb-5">{t('auth.sign_up_desc')}</p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
-              <label className="fld-lbl">EMAIL</label>
+              <label className="fld-lbl">{t('auth.email')}</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="dev@example.com" required />
             </div>
             <div>
-              <label className="fld-lbl">PASSWORD</label>
+              <label className="fld-lbl">{t('auth.password')}</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
             </div>
 
             {error && <p className="text-[11px] text-red-400">{error}</p>}
 
             <button type="submit" className="bg-[#ddd] text-[#000] border-none rounded-[5px] py-[9px] text-[12px] cursor-pointer mt-1">
-              create account
+              {t('auth.sign_up')}
             </button>
           </form>
 
           <p className="text-[11px] text-dim text-center mt-4">
-            Already have an account?{' '}
-            <Link to="/signin" className="text-[#bbb] underline">sign in</Link>
+            {t('auth.has_account')}{' '}
+            <Link to="/signin" className="text-[#bbb] underline">{t('auth.sign_in')}</Link>
           </p>
         </div>
       </div>
