@@ -1,5 +1,5 @@
 import { supabase } from './client'
-import type { Place, Review, PlaceType, Vibe, UseCase } from '@/types'
+import type { Place, Review, User, PlaceType, Vibe, UseCase } from '@/types'
 
 export async function fetchPlaces(): Promise<Place[]> {
   const { data, error } = await supabase
@@ -130,6 +130,78 @@ export async function fetchPlacePhotos(placeId: string): Promise<string[]> {
   return (data || [])
     .filter((f) => !f.id?.endsWith('/'))
     .map((f) => `${base}/${placeId}/${f.name}`)
+}
+
+export async function fetchProfileByUsername(username: string): Promise<User | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('username', username)
+    .single()
+
+  if (error || !data) return null
+
+  return {
+    id: data.id,
+    username: data.username,
+    avatar_url: data.avatar_url,
+    bio: data.bio,
+    role: data.role as User['role'],
+    submissions_count: 0,
+    reviews_count: 0,
+    created_at: data.created_at,
+  }
+}
+
+export async function fetchPlacesByUserId(userId: string): Promise<Place[]> {
+  const { data, error } = await supabase
+    .from('places')
+    .select('*')
+    .eq('submitted_by', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+
+  return (data || []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    type: p.type as PlaceType,
+    lat: p.lat,
+    lng: p.lng,
+    address: p.address || '',
+    hours: p.hours || '',
+    price_range: (p.price_range as 1 | 2 | 3) || 2,
+    vibe: p.vibe as Vibe,
+    use_cases: (p.use_cases || []) as UseCase[],
+    tags: p.tags || [],
+    submitted_by: p.submitted_by || '',
+    verified: p.verified || false,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+  }))
+}
+
+export async function fetchReviewsByUserId(userId: string): Promise<Review[]> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+
+  return (data || []).map((r) => ({
+    id: r.id,
+    place_id: r.place_id,
+    user_id: r.user_id,
+    rating: r.rating,
+    wifi_quality: r.wifi_quality as 1 | 2 | 3 | null,
+    noise_level: r.noise_level as 'quiet' | 'moderate' | 'loud' | null,
+    power_outlets: r.power_outlets,
+    body: r.body || '',
+    photos: r.photos || [],
+    created_at: r.created_at,
+  }))
 }
 
 export async function createReview(review: {
