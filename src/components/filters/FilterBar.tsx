@@ -17,7 +17,7 @@ export function FilterBar({ filters, onFilterChange }: FilterBarProps) {
   const { t } = useTranslation()
 
   return (
-    <div className="flex gap-[14px] flex-wrap">
+    <div className="flex gap-[14px] overflow-x-auto max-md:flex-nowrap max-md:pb-1 md:flex-wrap">
       <div className="flex gap-1 items-center">
         <span className="text-dim text-[10px] mr-1">{t('filters.vibe')}</span>
         {VALUES.vibes.map((value) => (

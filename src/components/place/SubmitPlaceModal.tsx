@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconX, IconPhoto } from '@tabler/icons-react'
+import { IconX, IconPhoto, IconMapPin } from '@tabler/icons-react'
 import type { Place, PlaceType, Vibe, UseCase, PriceRange } from '@/types'
 
 interface SubmitPlaceModalProps {
@@ -24,9 +24,24 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
   const [tags, setTags] = useState('')
   const [notes, setNotes] = useState('')
   const [photos, setPhotos] = useState<File[]>([])
+  const [lat, setLat] = useState<number | null>(null)
+  const [lng, setLng] = useState<number | null>(null)
+  const [locating, setLocating] = useState(false)
+  const [locError, setLocError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   if (!open) return null
+
+  const getLocation = () => {
+    if (!navigator.geolocation) { setLocError('Geolocation not available'); return }
+    setLocating(true)
+    setLocError(null)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLat(pos.coords.latitude); setLng(pos.coords.longitude); setLocating(false) },
+      () => { setLocError('Could not get location'); setLocating(false) },
+      { enableHighAccuracy: true },
+    )
+  }
 
   const toggleUse = (u: UseCase) => {
     setUseCases((prev) => (prev.includes(u) ? prev.filter((x) => x !== u) : [...prev, u]))
@@ -34,14 +49,14 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
 
   const handleSubmit = () => {
     const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean)
-    onSubmit({ name, type, hours, vibe, use_cases: useCases, price_range: price, tags: tagList, notes }, photos)
+    onSubmit({ name, type, lat: lat ?? undefined, lng: lng ?? undefined, hours, vibe, use_cases: useCases, price_range: price, tags: tagList, notes }, photos)
     reset()
     onClose()
   }
 
   const reset = () => {
     setStep(0); setName(''); setType('café'); setHours(''); setVibe('calm')
-    setUseCases([]); setPrice(2); setTags(''); setNotes(''); setPhotos([])
+    setUseCases([]); setPrice(2); setTags(''); setNotes(''); setPhotos([]); setLat(null); setLng(null); setLocError(null)
   }
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,7 +74,7 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
       className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-surf border border-border rounded-[10px] w-[min(420px,92%)] p-5 relative">
+      <div className="bg-surf border border-border rounded-[10px] w-[min(420px,92%)] max-sm:w-full max-sm:rounded-none max-sm:h-full max-sm:overflow-y-auto p-5 relative">
         <div className="flex justify-between mb-4 items-start">
           <div>
             <div className="text-[10px] text-muted mb-[3px]">{t('submit.title')}</div>
@@ -101,6 +116,25 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
               <div>
                 <label className="fld-lbl">{t('submit.notes')}</label>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('submit.notes_placeholder')} />
+              </div>
+              <div>
+                <label className="fld-lbl">LOCATION</label>
+                {lat !== null && lng !== null ? (
+                  <div className="text-[10px] text-muted bg-surf2 border border-border rounded-[5px] px-3 py-2">
+                    {lat.toFixed(6)}, {lng.toFixed(6)}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={getLocation}
+                    disabled={locating}
+                    className="flex items-center gap-2 text-[11px] text-muted border border-border rounded-[5px] px-3 py-2 bg-surf2 cursor-pointer w-full hover:text-txt transition-colors disabled:opacity-40"
+                  >
+                    <IconMapPin size={14} />
+                    {locating ? 'getting location…' : 'use my current location'}
+                  </button>
+                )}
+                {locError && <p className="text-[10px] text-red-400 mt-1">{locError}</p>}
               </div>
             </div>
           )}

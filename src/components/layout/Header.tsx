@@ -22,18 +22,18 @@ const VIEW_ICONS: Record<string, typeof IconLayoutSidebarRight> = {
 export function Header({ view, onViewChange, onSubmitClick, onSearchChange, searchQuery, resultCount, onCmdOpen }: HeaderProps) {
   const { t } = useTranslation()
   return (
-    <div className="px-[18px] py-3 border-b border-border bg-surf flex flex-col gap-2">
+    <div className="px-[14px] md:px-[18px] py-2.5 md:py-3 border-b border-border bg-surf flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-[30px] h-[30px] bg-[#222] border border-[#333] rounded-[6px] flex items-center justify-center">
-            <IconKeyboard size={15} className="text-[#ccc]" />
+        <div className="flex items-center gap-2">
+          <div className="w-[26px] h-[26px] md:w-[30px] md:h-[30px] bg-[#222] border border-[#333] rounded-[6px] flex items-center justify-center">
+            <IconKeyboard size={13} className="text-[#ccc] md:size-[15px]" />
           </div>
           <div>
-            <div className="text-[15px] text-txt leading-tight">{t('nav.title')}</div>
-            <div className="text-[10px] text-dim">{t('nav.subtitle')}</div>
+            <div className="text-[14px] md:text-[15px] text-txt leading-tight">{t('nav.title')}</div>
+            <div className="text-[10px] text-dim hidden md:block">{t('nav.subtitle')}</div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 md:gap-1.5">
           <button
             onClick={onCmdOpen}
             className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-dim border border-border rounded-[4px] bg-transparent cursor-pointer hover:text-muted transition-colors"

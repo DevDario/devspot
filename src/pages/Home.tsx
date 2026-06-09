@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Place, ViewMode, Filters, PlaceType, Vibe, UseCase } from '@/types'
 import { useTranslation } from 'react-i18next'
@@ -62,8 +62,8 @@ export function Home() {
   const handleSubmit = useCallback(
     async (partial: Partial<Place>, photoFiles: File[]) => {
       if (!user) return
-      const lat = -8.84 + Math.random() * 0.06
-      const lng = 13.21 + Math.random() * 0.05
+      const lat = partial.lat ?? -8.84
+      const lng = partial.lng ?? 13.21
       const created = await createPlace({ ...partial, lat, lng }, user.id)
       if (created && photoFiles.length > 0) {
         await Promise.all(
@@ -97,14 +97,13 @@ export function Home() {
         resultCount={filtered.length}
         onCmdOpen={() => setShowCmd(true)}
       />
-      <div className="px-[18px] py-2.5 border-b border-border bg-surf">
+      <div className="px-[14px] md:px-[18px] py-2.5 border-b border-border bg-surf">
         <FilterBar filters={filters} onFilterChange={setFilters} />
       </div>
       <div className="flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 160px)' }}>
         {(view === 'split' || view === 'list') && (
           <div
-            className="overflow-y-auto border-r border-border flex-shrink-0"
-            style={{ width: view === 'list' ? '100%' : '330px' }}
+            className={`overflow-y-auto border-r border-border flex-shrink-0 ${view === 'list' ? 'w-full' : 'max-md:w-full md:w-[330px]'}`}
             onClick={() => setSelectedPlace(null)}
           >
             {loading ? (
