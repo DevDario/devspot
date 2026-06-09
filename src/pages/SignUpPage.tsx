@@ -28,7 +28,7 @@ export function SignUpPage() {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center p-4">
         <div className="bg-surf border border-border rounded-[10px] p-6 max-w-sm w-full text-center">
-          <IconCircleCheck size={28} className="mx-auto mb-2 text-[#5bc8a0]" />
+          <IconCircleCheck size={28} className="block mx-auto mb-2 text-[#5bc8a0]" />
           <h1 className="text-[16px] text-txt mb-2">{t('auth.check_email')}</h1>
           <p className="text-[11px] text-muted mb-4">
             {t('auth.check_email_desc')} <strong className="text-txt">{email}</strong>

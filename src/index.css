@@ -19,12 +19,6 @@
   --font-primary: 'DotGothic16', monospace;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 body {
   font-family: 'DotGothic16', monospace;
   background: var(--color-bg);

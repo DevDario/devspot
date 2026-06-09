@@ -113,7 +113,7 @@ export function Home() {
               </div>
             ) : loadError ? (
               <div className="p-9 text-center">
-                <IconTerminal2 size={28} className="mx-auto mb-2 text-muted" />
+                <IconTerminal2 size={28} className="block mx-auto mb-2 text-muted" />
                 <p className="text-[11px] text-muted mb-3">{loadError}</p>
                 <button
                   onClick={() => { setLoading(true); setLoadError(null); fetchPlaces().then(setPlaces).catch((e) => setLoadError(e.message)).finally(() => setLoading(false)) }}
@@ -124,7 +124,7 @@ export function Home() {
               </div>
             ) : filtered.length === 0 ? (
               <div className="p-9 text-center">
-                <IconMapOff size={32} className="mx-auto mb-3 text-dim" />
+                <IconMapOff size={32} className="block mx-auto mb-3 text-dim" />
                 <p className="text-[12px] text-muted mb-1">{t('place.no_results')}</p>
                 <p className="text-[10px] text-dim mb-4">try adjusting filters or search</p>
                 <button

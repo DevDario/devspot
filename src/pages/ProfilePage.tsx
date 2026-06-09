@@ -50,7 +50,7 @@ export function ProfilePage() {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="text-center">
-          <IconTerminal2 size={32} className="mx-auto mb-3 text-dim" />
+          <IconTerminal2 size={32} className="block mx-auto mb-3 text-dim" />
           <p className="text-[12px] text-muted mb-3">{error || 'User not found'}</p>
           <button onClick={() => navigate('/')} className="text-[11px] text-txt border border-border rounded-[4px] px-3 py-1.5 bg-surf2 cursor-pointer">
             back to map
