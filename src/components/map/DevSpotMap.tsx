@@ -22,6 +22,7 @@ interface DevSpotMapProps {
   places: Place[]
   selectedPlace: Place | null
   onSelectPlace: (place: Place | null) => void
+  theme?: 'dark' | 'light'
 }
 
 const TYPE_ICONS: Record<string, typeof IconCoffee | typeof IconBuilding> = {
@@ -47,7 +48,7 @@ function getMarkerIcon(type: string) {
   return TYPE_ICONS[type] || IconCoffee
 }
 
-export function DevSpotMap({ places, selectedPlace, onSelectPlace }: DevSpotMapProps) {
+export function DevSpotMap({ places, selectedPlace, onSelectPlace, theme = 'dark' }: DevSpotMapProps) {
   const { t } = useTranslation()
   const userLoc = useUserLocation()
   const [route, setRoute] = useState<RouteData | null>(null)
@@ -105,6 +106,7 @@ export function DevSpotMap({ places, selectedPlace, onSelectPlace }: DevSpotMapP
     <div className="flex-1 relative">
       <Map
         ref={mapRef as never}
+        theme={theme}
         center={center}
         zoom={hasUserLocation ? 13 : 11}
         className="h-full w-full"
