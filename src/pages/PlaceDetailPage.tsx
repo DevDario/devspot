@@ -1,8 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { IconArrowLeft, IconBuilding, IconCoffee, IconRoute, IconTerminal2 } from '@tabler/icons-react'
+import {
+  IconArrowLeft, IconBuilding, IconCoffee, IconRoute, IconTerminal2,
+  IconWifi, IconHeadphones, IconPlugConnected, IconTrash, IconPencil,
+} from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { useState, useCallback } from 'react'
-import type { Review } from '@/types'
+import type { Review, NoiseLevel } from '@/types'
 import { StarRating } from '@/components/review/StarRating'
 import { PriceBar } from '@/components/ui/PriceBar'
 import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
@@ -12,7 +15,10 @@ import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { fetchRoute, formatDuration, formatDistance } from '@/lib/utils/osrm'
 import type { RouteData } from '@/lib/utils/osrm'
-import { fetchPlaceById, fetchReviewsForPlace, fetchPlacePhotos, createReview } from '@/lib/supabase/places'
+import {
+  fetchPlaceById, fetchReviewsForPlace, fetchPlacePhotos,
+  createReview, updateReview, deleteReview, deletePlace,
+} from '@/lib/supabase/places'
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useAuth } from '@/lib/supabase/auth'
 import { SubmitReviewForm } from '@/components/review/SubmitReviewForm'
@@ -29,6 +35,7 @@ export function PlaceDetailPage() {
   const [routing, setRouting] = useState(false)
   const [routeError, setRouteError] = useState<string | null>(null)
   const [showReviewForm, setShowReviewForm] = useState(false)
+  const [editingReview, setEditingReview] = useState<Review | null>(null)
   const { user } = useAuth()
 
   const { data: place, isLoading: placeLoading, error: placeError } = useQuery({
@@ -93,6 +100,64 @@ export function PlaceDetailPage() {
   }) => {
     await reviewMutation.mutateAsync(review)
   }, [reviewMutation])
+
+  const deleteReviewMutation = useMutation({
+    mutationFn: async (reviewId: string) => {
+      await deleteReview(reviewId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', id] })
+    },
+  })
+
+  const updateReviewMutation = useMutation({
+    mutationFn: async (params: { reviewId: string; data: Parameters<typeof updateReview>[1] }) => {
+      await updateReview(params.reviewId, params.data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', id] })
+      setEditingReview(null)
+      setShowReviewForm(false)
+    },
+  })
+
+  const deletePlaceMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error('no id')
+      await deletePlace(id)
+    },
+    onSuccess: () => {
+      navigate('/')
+    },
+  })
+
+  const handleEditReview = useCallback((review: Review) => {
+    setEditingReview(review)
+    setShowReviewForm(true)
+  }, [])
+
+  const handleUpdateReview = useCallback(async (review: {
+    rating: number
+    wifi_quality: number | null
+    noise_level: string | null
+    power_outlets: boolean | null
+    body: string
+  }) => {
+    if (!editingReview) return
+    await updateReviewMutation.mutateAsync({ reviewId: editingReview.id, data: review })
+  }, [editingReview, updateReviewMutation])
+
+  const handleDeleteReview = useCallback((reviewId: string) => {
+    if (window.confirm(t('review.confirm_delete'))) {
+      deleteReviewMutation.mutate(reviewId)
+    }
+  }, [t, deleteReviewMutation])
+
+  const handleDeletePlace = useCallback(() => {
+    if (window.confirm(t('submit.confirm_delete'))) {
+      deletePlaceMutation.mutate()
+    }
+  }, [t, deletePlaceMutation])
 
   if (placeLoading) {
     return (
@@ -176,6 +241,16 @@ export function PlaceDetailPage() {
 
           <div className="flex items-center gap-2 text-[10px] text-dim">
             <span>{t('place.submitted_by')} @{place.submitted_by}</span>
+            {user?.id === place.submitted_by && (
+              <div className="flex items-center gap-1.5 ml-auto">
+                <button
+                  onClick={handleDeletePlace}
+                  className="flex items-center gap-1 text-red-400 bg-none border-none cursor-pointer text-[10px]"
+                >
+                  <IconTrash size={11} /> {t('submit.delete')}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -241,10 +316,19 @@ export function PlaceDetailPage() {
           </div>
           {showReviewForm && (
             <div className="mb-4">
-              <SubmitReviewForm
-                onSubmit={handleSubmitReview}
-                onCancel={() => setShowReviewForm(false)}
-              />
+              {editingReview ? (
+                <SubmitReviewForm
+                  key={editingReview.id}
+                  initial={editingReview}
+                  onSubmit={handleUpdateReview}
+                  onCancel={() => { setEditingReview(null); setShowReviewForm(false) }}
+                />
+              ) : (
+                <SubmitReviewForm
+                  onSubmit={handleSubmitReview}
+                  onCancel={() => setShowReviewForm(false)}
+                />
+              )}
             </div>
           )}
           {!showReviewForm && reviews.length === 0 ? (
@@ -253,15 +337,57 @@ export function PlaceDetailPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {reviews.map((r) => (
-                <div key={r.id} className="bg-surf2 border border-border rounded-[6px] p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <StarRating rating={r.rating} />
-                    <span className="text-[10px] text-dim">{new Date(r.created_at).toLocaleDateString()}</span>
+              {reviews.map((r) => {
+                const isOwner = user?.id === r.user_id
+                return (
+                  <div key={r.id} className="bg-surf2 border border-border rounded-[6px] p-3">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-2">
+                        <StarRating rating={r.rating} />
+                        <span className="text-[10px] text-dim">{new Date(r.created_at).toLocaleDateString()}</span>
+                      </div>
+                      {isOwner && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleEditReview(r)}
+                            className="text-dim bg-none border-none cursor-pointer"
+                            title={t('review.edit')}
+                          >
+                            <IconPencil size={12} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReview(r.id)}
+                            className="text-red-400 bg-none border-none cursor-pointer"
+                            title={t('review.delete')}
+                          >
+                            <IconTrash size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {(r.wifi_quality || r.noise_level || r.power_outlets !== null) && (
+                      <div className="flex flex-wrap gap-1.5 mb-1.5">
+                        {r.wifi_quality && (
+                          <span className="text-[10px] text-dim flex items-center gap-0.5 bg-surf rounded-[3px] px-1.5 py-0.5">
+                            <IconWifi size={10} /> {t(`review.wifi_${r.wifi_quality}`)}
+                          </span>
+                        )}
+                        {r.noise_level && (
+                          <span className="text-[10px] text-dim flex items-center gap-0.5 bg-surf rounded-[3px] px-1.5 py-0.5">
+                            <IconHeadphones size={10} /> {t(`review.${r.noise_level}`)}
+                          </span>
+                        )}
+                        {r.power_outlets !== null && (
+                          <span className="text-[10px] text-dim flex items-center gap-0.5 bg-surf rounded-[3px] px-1.5 py-0.5">
+                            <IconPlugConnected size={10} /> {r.power_outlets ? t('review.power') : t('review.no_power')}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {r.body && <p className="text-[11px] text-muted">{r.body}</p>}
                   </div>
-                  {r.body && <p className="text-[11px] text-muted">{r.body}</p>}
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

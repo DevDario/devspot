@@ -137,11 +137,25 @@ export async function createPlace(
   return data as unknown as Place
 }
 
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+
+export function validateFile(file: File) {
+  if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+    throw new Error(`Invalid file type: ${file.type}. Allowed: ${ALLOWED_PHOTO_TYPES.join(', ')}`)
+  }
+  if (file.size > MAX_PHOTO_SIZE) {
+    throw new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Max: 5MB`)
+  }
+}
+
 export async function uploadPhoto(
   bucket: 'place-photos' | 'review-photos',
   file: File,
   path: string
 ): Promise<string | null> {
+  validateFile(file)
+
   const { error: uploadError } = await supabase.storage
     .from(bucket)
     .upload(path, file, {
@@ -236,5 +250,49 @@ export async function createReview(review: {
   }
 
   const { error } = await supabase.from('reviews').insert(insertData as never)
+  if (error) throw error
+}
+
+export async function updatePlace(
+  id: string,
+  updates: Partial<Place>
+): Promise<void> {
+  const { error } = await supabase
+    .from('places')
+    .update(updates as never)
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function deletePlace(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('places')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function updateReview(
+  id: string,
+  updates: {
+    rating?: number
+    wifi_quality?: number | null
+    noise_level?: string | null
+    power_outlets?: boolean | null
+    body?: string
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from('reviews')
+    .update(updates as never)
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteReview(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('reviews')
+    .delete()
+    .eq('id', id)
   if (error) throw error
 }
