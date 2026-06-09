@@ -1,4 +1,4 @@
-import { IconKeyboard, IconLayoutSidebarRight, IconMap, IconList } from '@tabler/icons-react'
+import { IconKeyboard, IconLayoutSidebarRight, IconMap, IconList, IconCommand } from '@tabler/icons-react'
 import type { ViewMode } from '@/types'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { useTranslation } from 'react-i18next'
@@ -10,6 +10,7 @@ interface HeaderProps {
   onSearchChange: (q: string) => void
   searchQuery: string
   resultCount: number
+  onCmdOpen: () => void
 }
 
 const VIEW_ICONS: Record<string, typeof IconLayoutSidebarRight> = {
@@ -18,7 +19,7 @@ const VIEW_ICONS: Record<string, typeof IconLayoutSidebarRight> = {
   list: IconList,
 }
 
-export function Header({ view, onViewChange, onSubmitClick, onSearchChange, searchQuery, resultCount }: HeaderProps) {
+export function Header({ view, onViewChange, onSubmitClick, onSearchChange, searchQuery, resultCount, onCmdOpen }: HeaderProps) {
   const { t } = useTranslation()
   return (
     <div className="px-[18px] py-3 border-b border-border bg-surf flex flex-col gap-2">
@@ -28,11 +29,19 @@ export function Header({ view, onViewChange, onSubmitClick, onSearchChange, sear
             <IconKeyboard size={15} className="text-[#ccc]" />
           </div>
           <div>
-            <div className="text-[15px] text-[#e8e8e8] leading-tight">{t('nav.title')}</div>
+            <div className="text-[15px] text-txt leading-tight">{t('nav.title')}</div>
             <div className="text-[10px] text-dim">{t('nav.subtitle')}</div>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={onCmdOpen}
+            className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-dim border border-border rounded-[4px] bg-transparent cursor-pointer hover:text-muted transition-colors"
+            title="Command palette"
+          >
+            <IconCommand size={12} />
+            <span className="hidden sm:inline">K</span>
+          </button>
           <div className="flex gap-[3px]">
             {(['split', 'map', 'list'] as const).map((mode) => {
               const Icon = VIEW_ICONS[mode]
@@ -63,7 +72,11 @@ export function Header({ view, onViewChange, onSubmitClick, onSearchChange, sear
       </div>
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <IconSearch className="absolute left-[9px] top-1/2 -translate-y-1/2 text-muted" size={13} />
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            className="absolute left-[9px] top-1/2 -translate-y-1/2 text-muted">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
           <input
             type="text"
             placeholder={t('nav.search')}
@@ -75,14 +88,5 @@ export function Header({ view, onViewChange, onSubmitClick, onSearchChange, sear
         <span className="text-dim text-[11px] whitespace-nowrap">{resultCount} {t('profile.places')}</span>
       </div>
     </div>
-  )
-}
-
-function IconSearch({ size, className }: { size: number; className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
   )
 }
