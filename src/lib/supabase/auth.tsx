@@ -6,6 +6,7 @@ interface AuthContext {
   user: User | null
   profileUsername: string | null
   loading: boolean
+  showLogoutMessage: boolean
   signIn: (email: string, password: string) => Promise<string | null>
   signUp: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
@@ -16,6 +17,7 @@ const AuthCtx = createContext<AuthContext>({
   user: null,
   profileUsername: null,
   loading: true,
+  showLogoutMessage: false,
   signIn: async () => null,
   signUp: async () => null,
   signOut: async () => {},
@@ -26,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profileUsername, setProfileUsername] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showLogoutMessage, setShowLogoutMessage] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -68,6 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut()
+    setShowLogoutMessage(true)
+    setTimeout(() => setShowLogoutMessage(false), 2500)
   }
 
   const signInWithGoogle = async () => {
@@ -75,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthCtx.Provider value={{ user, profileUsername, loading, signIn, signUp, signOut, signInWithGoogle }}>
+    <AuthCtx.Provider value={{ user, profileUsername, loading, showLogoutMessage, signIn, signUp, signOut, signInWithGoogle }}>
       {children}
     </AuthCtx.Provider>
   )

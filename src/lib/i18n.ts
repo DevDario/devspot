@@ -127,6 +127,7 @@ const pt = {
     check_email_desc: 'Enviámos um link de confirmação para',
     go_to_signin: 'ir para entrar',
     sign_out: 'sair',
+    signed_out: 'Sessão terminada. Até logo!',
     or: 'ou',
   },
   profile: {
@@ -303,6 +304,7 @@ const en = {
     check_email_desc: 'We sent a confirmation link to',
     go_to_signin: 'go to sign in',
     sign_out: 'sign out',
+    signed_out: 'Signed out. See you later!',
     or: 'or',
   },
   profile: {
