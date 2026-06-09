@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { IconKeyboard, IconCircleCheck } from '@tabler/icons-react'
+import { IconKeyboard, IconCircleCheck, IconAlertTriangle } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/supabase/auth'
+import { createProfile } from '@/lib/supabase/places'
+import { supabase } from '@/lib/supabase/client'
 
 export function SignUpPage() {
   const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const { signUp } = useAuth()
@@ -16,11 +19,34 @@ export function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      setError('Username must be 3–20 chars, letters/numbers/underscores only')
+      return
+    }
+
     const err = await signUp(email, password)
     if (err) {
       setError(err)
-    } else {
+      return
+    }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
       setSuccess(true)
+      return
+    }
+
+    try {
+      await createProfile({ id: session.user.id, username })
+      navigate('/')
+    } catch (insertErr: any) {
+      if (insertErr?.message?.includes('duplicate key') || insertErr?.code === '23505') {
+        setError('Username already taken')
+        await supabase.auth.signOut()
+      } else {
+        setSuccess(true)
+      }
     }
   }
 
@@ -63,6 +89,17 @@ export function SignUpPage() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
+              <label className="fld-lbl">USERNAME</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20))}
+                placeholder="dariothedev"
+                required
+                pattern="^[a-zA-Z0-9_]{3,20}$"
+              />
+            </div>
+            <div>
               <label className="fld-lbl">{t('auth.email')}</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="dev@example.com" required />
             </div>
@@ -71,7 +108,12 @@ export function SignUpPage() {
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
             </div>
 
-            {error && <p className="text-[11px] text-red-400">{error}</p>}
+            {error && (
+              <div className="flex items-start gap-2 text-[11px] text-red-400">
+                <IconAlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
             <button type="submit" className="bg-[#ddd] text-[#000] border-none rounded-[5px] py-[9px] text-[12px] cursor-pointer mt-1">
               {t('auth.sign_up')}

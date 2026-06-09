@@ -137,6 +137,7 @@ const pt = {
     no_places: 'Nenhum lugar submetido ainda.',
     not_found: 'Utilizador não encontrado',
     back_to_map: 'voltar ao mapa',
+    edit_bio_placeholder: 'Conta aos devs quem és...',
   },
   map: {
     locate: 'Encontrar minha localização',
@@ -311,6 +312,7 @@ const en = {
     no_places: 'No places submitted yet.',
     not_found: 'User not found',
     back_to_map: 'back to map',
+    edit_bio_placeholder: 'Tell devs who you are...',
   },
   map: {
     locate: 'Find my location',

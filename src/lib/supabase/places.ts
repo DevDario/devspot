@@ -184,6 +184,30 @@ export async function fetchPlacePhotos(placeId: string): Promise<string[]> {
     .filter(Boolean)
 }
 
+export async function createProfile(profile: {
+  id: string
+  username: string
+}): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .insert({
+      id: profile.id,
+      username: profile.username,
+    })
+  if (error) throw error
+}
+
+export async function updateProfile(
+  id: string,
+  updates: { username?: string; bio?: string; avatar_url?: string }
+): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function fetchProfileByUsername(username: string): Promise<User | null> {
   const { data, error } = await supabase
     .from('profiles')

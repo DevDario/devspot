@@ -1,9 +1,10 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { IconArrowLeft, IconKeyboard, IconTerminal2 } from '@tabler/icons-react'
+import { IconArrowLeft, IconKeyboard, IconTerminal2, IconPencil } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/supabase/auth'
-import { fetchProfileByUsername, fetchPlacesByUserId, fetchReviewsByUserId } from '@/lib/supabase/places'
+import { fetchProfileByUsername, fetchPlacesByUserId, fetchReviewsByUserId, updateProfile } from '@/lib/supabase/places'
 import type { PlaceWithRating } from '@/types'
 import { PlaceCard } from '@/components/place/PlaceCard'
 import { Loader2 } from 'lucide-react'
@@ -13,6 +14,10 @@ export function ProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const [editingBio, setEditingBio] = useState(false)
+  const [bioDraft, setBioDraft] = useState('')
+  const [savingBio, setSavingBio] = useState(false)
 
   const { data: profile, isLoading: profileLoading, error: profileError } = useQuery({
     queryKey: ['profile', username],
@@ -33,6 +38,23 @@ export function ProfilePage() {
   })
 
   const loading = profileLoading || (profile && (placesLoading || reviewsLoading))
+  const isOwner = user?.id === profile?.id
+
+  const handleSaveBio = async () => {
+    if (!profile) return
+    setSavingBio(true)
+    try {
+      await updateProfile(profile.id, { bio: bioDraft })
+      queryClient.invalidateQueries({ queryKey: ['profile', username] })
+      setEditingBio(false)
+    } catch {}
+    setSavingBio(false)
+  }
+
+  const startEditBio = () => {
+    setBioDraft(profile?.bio || '')
+    setEditingBio(true)
+  }
 
   if (loading) {
     return (
@@ -94,9 +116,51 @@ export function ProfilePage() {
               <p className="text-[11px] text-muted">{t('profile.member_since')} {new Date(profile.created_at).toLocaleDateString()}</p>
             </div>
           </div>
-          <p className="text-[12px] text-muted mb-4">
-            {profile.bio || t('profile.no_bio')}
-          </p>
+
+          <div className="relative mb-4">
+            {editingBio ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={bioDraft}
+                  onChange={(e) => setBioDraft(e.target.value.slice(0, 200))}
+                  placeholder={t('profile.edit_bio_placeholder') as string}
+                  className="text-[12px] text-muted"
+                  rows={3}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingBio(false)}
+                    className="text-[10px] text-dim bg-surf2 border border-border rounded-[3px] px-3 py-1 cursor-pointer"
+                  >
+                    {t('review.cancel')}
+                  </button>
+                  <button
+                    onClick={handleSaveBio}
+                    disabled={savingBio}
+                    className="text-[10px] text-txt bg-[#555] border-none rounded-[3px] px-3 py-1 cursor-pointer disabled:opacity-40"
+                  >
+                    {savingBio ? t('place.loading') : t('submit.submit')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="group flex items-start gap-2">
+                <p className="text-[12px] text-muted flex-1">
+                  {profile.bio || t('profile.no_bio')}
+                </p>
+                {isOwner && (
+                  <button
+                    onClick={startEditBio}
+                    className="text-dim bg-none border-none cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                    title={t('review.edit')}
+                  >
+                    <IconPencil size={12} />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-4 text-[11px]">
             <div className="bg-surf2 border border-border rounded-[6px] px-3 py-2 text-center">
               <div className="text-txt font-bold">{places.length}</div>
