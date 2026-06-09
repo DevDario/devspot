@@ -245,25 +245,26 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
                     ))}
                   </div>
                 )}
-                <div className="mt-1.5 flex items-center gap-2">
+                <div className="mt-1.5 flex items-center gap-2 text-[10px]">
                   <button
                     type="button"
                     onClick={toggleLocation}
                     disabled={locating}
-                    className={`text-[10px] cursor-pointer rounded-[3px] px-2.5 py-1 transition-colors disabled:opacity-40 flex items-center gap-1 ${
+                    className={`cursor-pointer rounded-[3px] px-2.5 py-1 transition-colors disabled:opacity-40 flex items-center gap-1 border ${
                       useLocation
-                        ? 'bg-[rgba(220,220,220,0.08)] border border-[#aaa] text-[#ddd]'
-                        : 'bg-transparent border border-border text-dim'
+                        ? 'bg-[rgba(220,220,220,0.08)] border-[#aaa] text-[#ddd]'
+                        : 'bg-transparent border-border text-dim'
                     }`}
                   >
                     <IconMapPin size={12} />
                     {useLocation ? t('submit.location_on') : t('submit.location_off')}
                   </button>
+                  <span className="text-muted">{t('submit.use_location')}</span>
                   {useLocation && locating && (
-                    <span className="text-[10px] text-muted">{t('submit.getting_location')}</span>
+                    <span className="text-muted">{t('submit.getting_location')}</span>
                   )}
                   {useLocation && !locating && lat !== null && lng !== null && (
-                    <span className="text-[10px] text-dim">{lat.toFixed(4)}, {lng.toFixed(4)}</span>
+                    <span className="text-dim">{lat.toFixed(4)}, {lng.toFixed(4)}</span>
                   )}
                 </div>
                 {locError && <p className="text-[10px] text-red-400 mt-1">{locError}</p>}

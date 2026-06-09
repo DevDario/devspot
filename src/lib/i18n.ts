@@ -10,6 +10,7 @@ const pt = {
     search: 'pesquisar...',
     theme_light: 'tema claro',
     theme_dark: 'tema escuro',
+    profile: 'perfil',
   },
   cmd: {
     placeholder: 'digita um comando...',
@@ -185,6 +186,7 @@ const en = {
     search: 'search...',
     theme_light: 'light theme',
     theme_dark: 'dark theme',
+    profile: 'profile',
   },
   cmd: {
     placeholder: 'type a command...',

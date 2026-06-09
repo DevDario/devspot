@@ -39,6 +39,7 @@ export function SignUpPage() {
 
     try {
       await createProfile({ id: session.user.id, username })
+      await supabase.auth.updateUser({ data: { username } })
       navigate('/')
     } catch (insertErr: any) {
       if (insertErr?.message?.includes('duplicate key') || insertErr?.code === '23505') {
