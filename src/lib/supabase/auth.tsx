@@ -4,6 +4,7 @@ import { supabase } from './client'
 
 interface AuthContext {
   user: User | null
+  profileUsername: string | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<string | null>
   signUp: (email: string, password: string) => Promise<string | null>
@@ -13,6 +14,7 @@ interface AuthContext {
 
 const AuthCtx = createContext<AuthContext>({
   user: null,
+  profileUsername: null,
   loading: true,
   signIn: async () => null,
   signUp: async () => null,
@@ -22,11 +24,13 @@ const AuthCtx = createContext<AuthContext>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [profileUsername, setProfileUsername] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+      const u = session?.user ?? null
+      setUser(u)
       setLoading(false)
     })
 
@@ -36,6 +40,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setProfileUsername(null)
+      return
+    }
+    supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        setProfileUsername(data?.username ?? null)
+      })
+  }, [user])
 
   const signIn = async (email: string, password: string): Promise<string | null> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -56,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthCtx.Provider value={{ user, loading, signIn, signUp, signOut, signInWithGoogle }}>
+    <AuthCtx.Provider value={{ user, profileUsername, loading, signIn, signUp, signOut, signInWithGoogle }}>
       {children}
     </AuthCtx.Provider>
   )

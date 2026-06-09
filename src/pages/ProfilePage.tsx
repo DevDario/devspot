@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { IconArrowLeft, IconKeyboard, IconTerminal2, IconPencil } from '@tabler/icons-react'
+import { IconArrowLeft, IconKeyboard, IconTerminal2, IconPencil, IconLogout } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -38,6 +38,7 @@ export function ProfilePage() {
   })
 
   const loading = profileLoading || (profile && (placesLoading || reviewsLoading))
+  const { signOut } = useAuth()
   const isOwner = user?.id === profile?.id
 
   const handleSaveBio = async () => {
@@ -94,12 +95,22 @@ export function ProfilePage() {
           >
             <IconArrowLeft size={14} /> {t('submit.back')}
           </button>
-          <Link to="/" className="flex items-center gap-2 no-underline">
-            <div className="w-[24px] h-[24px] bg-[#222] border border-[#333] rounded-[5px] flex items-center justify-center">
-              <IconKeyboard size={12} className="text-[#ccc]" />
-            </div>
-            <span className="text-[12px] text-dim">{t('nav.title')}</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            {isOwner && (
+              <button
+                onClick={() => { signOut(); navigate('/') }}
+                className="flex items-center gap-1 text-dim text-[11px] cursor-pointer bg-transparent border border-border rounded-[4px] px-2.5 py-1 hover:text-muted transition-colors"
+              >
+                <IconLogout size={12} /> {t('auth.sign_out')}
+              </button>
+            )}
+            <Link to="/" className="flex items-center gap-2 no-underline">
+              <div className="w-[24px] h-[24px] bg-[#222] border border-[#333] rounded-[5px] flex items-center justify-center">
+                <IconKeyboard size={12} className="text-[#ccc]" />
+              </div>
+              <span className="text-[12px] text-dim">{t('nav.title')}</span>
+            </Link>
+          </div>
         </div>
 
         <div className="bg-surf border border-border rounded-[10px] p-6 mb-4">

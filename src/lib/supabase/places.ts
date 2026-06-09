@@ -190,7 +190,7 @@ export async function createProfile(profile: {
 }): Promise<void> {
   const { error } = await supabase
     .from('profiles')
-    .insert({
+    .upsert({
       id: profile.id,
       username: profile.username,
     })

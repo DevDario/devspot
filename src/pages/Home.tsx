@@ -119,7 +119,6 @@ export function Home() {
         searchQuery={searchQuery}
         resultCount={filtered.length}
         onCmdOpen={() => setShowCmd(true)}
-        user={user}
       />
       <div className="px-[14px] md:px-[18px] py-2.5 border-b border-border bg-surf">
         <FilterBar filters={filters} onFilterChange={setFilters} />

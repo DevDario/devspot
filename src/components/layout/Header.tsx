@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import {
   IconKeyboard, IconLayoutSidebarRight, IconMap, IconList,
   IconCommand, IconSun, IconMoon, IconUser, IconMenu2, IconX,
+  IconLogout,
 } from '@tabler/icons-react'
 import type { ViewMode } from '@/types'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '@/lib/hooks/useTheme'
-import type { User } from '@supabase/supabase-js'
+import { useAuth } from '@/lib/supabase/auth'
 
 interface HeaderProps {
   view: ViewMode
@@ -18,7 +19,6 @@ interface HeaderProps {
   searchQuery: string
   resultCount: number
   onCmdOpen: () => void
-  user: User | null
 }
 
 const VIEW_ICONS: Record<string, typeof IconLayoutSidebarRight> = {
@@ -27,9 +27,10 @@ const VIEW_ICONS: Record<string, typeof IconLayoutSidebarRight> = {
   list: IconList,
 }
 
-export function Header({ view, onViewChange, onSubmitClick, onSearchChange, searchQuery, resultCount, onCmdOpen, user }: HeaderProps) {
+export function Header({ view, onViewChange, onSubmitClick, onSearchChange, searchQuery, resultCount, onCmdOpen }: HeaderProps) {
   const { t } = useTranslation()
   const { theme, toggle: toggleTheme } = useTheme()
+  const { user, profileUsername, signOut } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -72,7 +73,7 @@ export function Header({ view, onViewChange, onSubmitClick, onSearchChange, sear
       <LanguageSwitcher />
       {user ? (
         <button
-          onClick={() => navigate(`/profile/${user.user_metadata?.username || ''}`)}
+          onClick={() => navigate(`/profile/${profileUsername || ''}`)}
           className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-dim border border-border rounded-[4px] bg-transparent cursor-pointer hover:text-muted transition-colors"
           title={t('nav.profile')}
         >
@@ -160,7 +161,7 @@ export function Header({ view, onViewChange, onSubmitClick, onSearchChange, sear
           <div className="flex gap-2">
             {user ? (
               <button
-                onClick={() => { navigate(`/profile/${user.user_metadata?.username || ''}`); setMenuOpen(false) }}
+                onClick={() => { navigate(`/profile/${profileUsername || ''}`); setMenuOpen(false) }}
                 className="flex items-center gap-1.5 px-2.5 py-2 text-[11px] text-dim border border-border rounded-[4px] bg-transparent cursor-pointer hover:text-muted transition-colors flex-1 justify-center"
               >
                 <IconUser size={13} /> {t('nav.profile')}
@@ -171,6 +172,14 @@ export function Header({ view, onViewChange, onSubmitClick, onSearchChange, sear
                 className="flex items-center gap-1.5 px-2.5 py-2 text-[11px] text-dim border border-border rounded-[4px] bg-transparent cursor-pointer hover:text-muted transition-colors flex-1 justify-center"
               >
                 <IconUser size={13} /> {t('auth.sign_in')}
+              </button>
+            )}
+            {user && (
+              <button
+                onClick={() => { signOut(); setMenuOpen(false) }}
+                className="flex items-center gap-1.5 px-2.5 py-2 text-[11px] text-dim border border-border rounded-[4px] bg-transparent cursor-pointer hover:text-muted transition-colors flex-1 justify-center"
+              >
+                <IconLogout size={13} /> {t('auth.sign_out')}
               </button>
             )}
           </div>
