@@ -131,3 +131,24 @@ export async function fetchPlacePhotos(placeId: string): Promise<string[]> {
     .filter((f) => !f.id?.endsWith('/'))
     .map((f) => `${base}/${placeId}/${f.name}`)
 }
+
+export async function createReview(review: {
+  place_id: string
+  user_id: string
+  rating: number
+  wifi_quality: number | null
+  noise_level: string | null
+  power_outlets: boolean | null
+  body: string
+}): Promise<void> {
+  const { error } = await supabase.from('reviews').insert({
+    place_id: review.place_id,
+    user_id: review.user_id,
+    rating: review.rating,
+    wifi_quality: review.wifi_quality,
+    noise_level: review.noise_level,
+    power_outlets: review.power_outlets,
+    body: review.body,
+  })
+  if (error) throw error
+}

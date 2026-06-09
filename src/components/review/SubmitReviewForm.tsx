@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { IconWifi } from '@tabler/icons-react'
 import type { NoiseLevel } from '@/types'
 import { InteractiveStars } from './StarRating'
 
@@ -42,7 +43,7 @@ export function SubmitReviewForm({ onSubmit, onCancel }: SubmitReviewFormProps) 
               className={`ds-pill ${wifi === w ? 'on-g' : ''}`}
               onClick={() => setWifi(wifi === w ? null : w)}
             >
-              {'📶'.repeat(w)}
+              <IconWifi size={12} /> {w}/3
             </button>
           ))}
         </div>

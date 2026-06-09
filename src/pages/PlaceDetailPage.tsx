@@ -12,8 +12,10 @@ import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { fetchRoute, formatDuration, formatDistance } from '@/lib/utils/osrm'
 import type { RouteData } from '@/lib/utils/osrm'
-import { fetchPlaceById, fetchReviewsForPlace, fetchPlacePhotos } from '@/lib/supabase/places'
+import { fetchPlaceById, fetchReviewsForPlace, fetchPlacePhotos, createReview } from '@/lib/supabase/places'
 import { useTheme } from '@/lib/hooks/useTheme'
+import { useAuth } from '@/lib/supabase/auth'
+import { SubmitReviewForm } from '@/components/review/SubmitReviewForm'
 
 export function PlaceDetailPage() {
   const { t } = useTranslation()
@@ -29,6 +31,8 @@ export function PlaceDetailPage() {
   const [route, setRoute] = useState<RouteData | null>(null)
   const [routing, setRouting] = useState(false)
   const [routeError, setRouteError] = useState<string | null>(null)
+  const [showReviewForm, setShowReviewForm] = useState(false)
+  const { user } = useAuth()
 
   useEffect(() => {
     if (!id) return
@@ -65,6 +69,20 @@ export function PlaceDetailPage() {
       { enableHighAccuracy: true }
     )
   }, [place, t])
+
+  const handleSubmitReview = useCallback(async (review: {
+    rating: number
+    wifi_quality: number | null
+    noise_level: string | null
+    power_outlets: boolean | null
+    body: string
+  }) => {
+    if (!user || !id) return
+    await createReview({ ...review, place_id: id, user_id: user.id })
+    const updated = await fetchReviewsForPlace(id)
+    setReviews(updated)
+    setShowReviewForm(false)
+  }, [user, id])
 
   if (loading) {
     return (
@@ -204,11 +222,22 @@ export function PlaceDetailPage() {
         <div className="bg-surf border border-border rounded-[10px] p-5 mb-4">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-[14px] text-txt">{t('place.reviews')}</h2>
-            <button className="bg-[#555] border-none text-txt rounded-[5px] px-3 py-1.5 text-[11px] cursor-pointer">
+            <button
+              onClick={() => setShowReviewForm((p) => !p)}
+              className="bg-[#555] border-none text-txt rounded-[5px] px-3 py-1.5 text-[11px] cursor-pointer"
+            >
               {t('place.write_review')}
             </button>
           </div>
-          {reviews.length === 0 ? (
+          {showReviewForm && (
+            <div className="mb-4">
+              <SubmitReviewForm
+                onSubmit={handleSubmitReview}
+                onCancel={() => setShowReviewForm(false)}
+              />
+            </div>
+          )}
+          {!showReviewForm && reviews.length === 0 ? (
             <div className="text-center py-8 text-muted text-[11px]">
               {t('place.no_reviews')}
             </div>
