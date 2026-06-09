@@ -79,11 +79,14 @@ export function Home() {
         id: '',
       }, user.id)
       if (created && photos.length > 0) {
-        await Promise.all(
+        const results = await Promise.allSettled(
           photos.map((f, i) =>
             uploadPhoto('place-photos', f, `${created.id}/${i}-${f.name}`)
           )
         )
+        for (const r of results) {
+          if (r.status === 'rejected') console.warn('photo upload failed', r.reason)
+        }
       }
       return created
     },
