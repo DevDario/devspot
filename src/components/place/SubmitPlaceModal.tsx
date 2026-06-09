@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Place, PlaceType, Vibe, UseCase, PriceRange } from '@/types'
 
 interface SubmitPlaceModalProps {
@@ -7,16 +8,11 @@ interface SubmitPlaceModalProps {
   onSubmit: (place: Partial<Place>) => void
 }
 
-const STEPS = [
-  { title: '// the_place' },
-  { title: '// vibe_check' },
-  { title: '// dev_notes' },
-]
-
 const VIBE_OPTIONS: Vibe[] = ['calm', 'retro', 'modern']
 const USE_OPTIONS: UseCase[] = ['coding', 'cowork', 'meetings', 'hackathon', 'chill']
 
 export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalProps) {
+  const { t } = useTranslation()
   const [step, setStep] = useState(0)
 
   const [name, setName] = useState('')
@@ -64,6 +60,12 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
     setNotes('')
   }
 
+  const STEPS = [
+    { title: t('submit.step1') },
+    { title: t('submit.step2') },
+    { title: t('submit.step3') },
+  ]
+
   return (
     <div
       className="fixed inset-0 bg-[rgba(0,0,0,0.82)] flex items-center justify-center z-50"
@@ -74,7 +76,7 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
       <div className="bg-[#141414] border border-[#2a2a2a] rounded-[10px] w-[min(420px,92%)] p-5 relative">
         <div className="flex justify-between mb-4 items-start">
           <div>
-            <div className="text-[10px] text-muted mb-[3px]">submit_place.exe</div>
+            <div className="text-[10px] text-muted mb-[3px]">{t('submit.title')}</div>
             <div className="text-[15px] text-[#e0e0e0]">{STEPS[step].title}</div>
           </div>
           <button
@@ -102,30 +104,30 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
           {step === 0 && (
             <div className="flex flex-col gap-2.5">
               <div>
-                <label className="fld-lbl">NOME</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Café Central" />
+                <label className="fld-lbl">{t('submit.name')}</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('submit.name_placeholder')} />
               </div>
               <div>
-                <label className="fld-lbl">TIPO</label>
+                <label className="fld-lbl">{t('submit.type')}</label>
                 <select value={type} onChange={(e) => setType(e.target.value as PlaceType)}>
-                  <option value="café">café</option>
-                  <option value="cowork">cowork</option>
-                  <option value="esplanada">esplanada</option>
-                  <option value="restaurant">restaurant</option>
-                  <option value="library">library</option>
-                  <option value="other">outro</option>
+                  <option value="café">{t('place_type.café')}</option>
+                  <option value="cowork">{t('place_type.cowork')}</option>
+                  <option value="esplanada">{t('place_type.esplanada')}</option>
+                  <option value="restaurant">{t('place_type.restaurant')}</option>
+                  <option value="library">{t('place_type.library')}</option>
+                  <option value="other">{t('place_type.other')}</option>
                 </select>
               </div>
               <div>
-                <label className="fld-lbl">HORÁRIO</label>
-                <input type="text" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="08:00–22:00" />
+                <label className="fld-lbl">{t('submit.hours')}</label>
+                <input type="text" value={hours} onChange={(e) => setHours(e.target.value)} placeholder={t('submit.hours_placeholder')} />
               </div>
             </div>
           )}
           {step === 1 && (
             <div className="flex flex-col gap-3">
               <div>
-                <label className="fld-lbl">AMBIENTE</label>
+                <label className="fld-lbl">{t('submit.vibe')}</label>
                 <div className="flex gap-1 mt-1.5">
                   {VIBE_OPTIONS.map((v) => (
                     <button
@@ -139,7 +141,7 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
                 </div>
               </div>
               <div>
-                <label className="fld-lbl">IDEAL PARA</label>
+                <label className="fld-lbl">{t('submit.use_cases')}</label>
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   {USE_OPTIONS.map((u) => (
                     <button
@@ -153,7 +155,7 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
                 </div>
               </div>
               <div>
-                <label className="fld-lbl">PREÇO</label>
+                <label className="fld-lbl">{t('submit.price')}</label>
                 <div className="flex gap-1 mt-1.5">
                   {([1, 2, 3] as PriceRange[]).map((p) => (
                     <button
@@ -171,12 +173,12 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
           {step === 2 && (
             <div className="flex flex-col gap-2.5">
               <div>
-                <label className="fld-lbl">TAGS (vírgula)</label>
-                <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="wifi, AC, tomadas..." />
+                <label className="fld-lbl">{t('submit.tags')}</label>
+                <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t('submit.tags_placeholder')} />
               </div>
               <div>
-                <label className="fld-lbl">NOTAS</label>
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Conta aos devs o que precisam saber..." />
+                <label className="fld-lbl">{t('submit.notes')}</label>
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('submit.notes_placeholder')} />
               </div>
             </div>
           )}
@@ -188,7 +190,7 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
               onClick={() => setStep((s) => s - 1)}
               className="flex-1 bg-surf2 border border-border text-muted rounded-[5px] py-[9px] text-[11px] cursor-pointer"
             >
-              ← back
+              {t('submit.back')}
             </button>
           )}
           <button
@@ -202,7 +204,7 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
             className="flex-[2] bg-[#333] border-none text-[#e0e0e0] rounded-[5px] py-[9px] text-[11px] cursor-pointer"
             style={{ background: step === STEPS.length - 1 ? '#555' : '#333' }}
           >
-            {step < STEPS.length - 1 ? 'next →' : 'submit ↗'}
+            {step < STEPS.length - 1 ? t('submit.next') : t('submit.submit')}
           </button>
         </div>
       </div>

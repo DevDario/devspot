@@ -1,30 +1,12 @@
+import { useTranslation } from 'react-i18next'
 import type { Vibe, UseCase, PlaceType, Filters } from '@/types'
 import { Pill } from '@/components/ui/Pill'
 
-const VIBES: { label: string; value: Vibe | 'all' }[] = [
-  { label: 'all', value: 'all' },
-  { label: 'calm', value: 'calm' },
-  { label: 'retro', value: 'retro' },
-  { label: 'modern', value: 'modern' },
-]
-
-const USES: { label: string; value: UseCase | 'all' }[] = [
-  { label: 'all', value: 'all' },
-  { label: 'coding', value: 'coding' },
-  { label: 'cowork', value: 'cowork' },
-  { label: 'meetings', value: 'meetings' },
-  { label: 'hackathon', value: 'hackathon' },
-  { label: 'chill', value: 'chill' },
-]
-
-const TYPES: { label: string; value: PlaceType | 'all' }[] = [
-  { label: 'all', value: 'all' },
-  { label: 'café', value: 'café' },
-  { label: 'cowork', value: 'cowork' },
-  { label: 'esplanada', value: 'esplanada' },
-  { label: 'restaurant', value: 'restaurant' },
-  { label: 'library', value: 'library' },
-]
+const VALUES = {
+  vibes: ['all', 'calm', 'retro', 'modern'] as const,
+  uses: ['all', 'coding', 'cowork', 'meetings', 'hackathon', 'chill'] as const,
+  types: ['all', 'café', 'cowork', 'esplanada', 'restaurant', 'library'] as const,
+}
 
 interface FilterBarProps {
   filters: Filters
@@ -32,14 +14,16 @@ interface FilterBarProps {
 }
 
 export function FilterBar({ filters, onFilterChange }: FilterBarProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="flex gap-[14px] flex-wrap">
       <div className="flex gap-1 items-center">
-        <span className="text-dim text-[10px] mr-1">vibe:</span>
-        {VIBES.map(({ label, value }) => (
+        <span className="text-dim text-[10px] mr-1">{t('filters.vibe')}</span>
+        {VALUES.vibes.map((value) => (
           <Pill
             key={value}
-            label={label}
+            label={value === 'all' ? t('filters.all') : value}
             active={filters.vibe === value}
             variant="a"
             onClick={() => onFilterChange({ ...filters, vibe: value as Vibe | 'all' })}
@@ -47,11 +31,11 @@ export function FilterBar({ filters, onFilterChange }: FilterBarProps) {
         ))}
       </div>
       <div className="flex gap-1 items-center">
-        <span className="text-dim text-[10px] mr-1">uso:</span>
-        {USES.map(({ label, value }) => (
+        <span className="text-dim text-[10px] mr-1">{t('filters.use')}</span>
+        {VALUES.uses.map((value) => (
           <Pill
             key={value}
-            label={label}
+            label={value === 'all' ? t('filters.all') : value}
             active={filters.use === value}
             variant="g"
             onClick={() => onFilterChange({ ...filters, use: value as UseCase | 'all' })}
@@ -59,11 +43,11 @@ export function FilterBar({ filters, onFilterChange }: FilterBarProps) {
         ))}
       </div>
       <div className="flex gap-1 items-center">
-        <span className="text-dim text-[10px] mr-1">tipo:</span>
-        {TYPES.map(({ label, value }) => (
+        <span className="text-dim text-[10px] mr-1">{t('filters.type')}</span>
+        {VALUES.types.map((value) => (
           <Pill
             key={value}
-            label={label}
+            label={value === 'all' ? t('filters.all') : value}
             active={filters.type === value}
             variant="s"
             onClick={() => onFilterChange({ ...filters, type: value as PlaceType | 'all' })}

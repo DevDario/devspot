@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Place, ViewMode, Filters, PlaceType, Vibe, UseCase } from '@/types'
+import { useTranslation } from 'react-i18next'
 import { Header } from '@/components/layout/Header'
 import { FilterBar } from '@/components/filters/FilterBar'
 import { PlaceCard } from '@/components/place/PlaceCard'
@@ -19,6 +20,7 @@ const MOCK_PLACES: Place[] = [
 const DEFAULT_FILTERS: Filters = { vibe: 'all', use: 'all', type: 'all' }
 
 export function Home() {
+  const { t } = useTranslation()
   const [places, setPlaces] = useState<Place[]>(MOCK_PLACES)
   const [view, setView] = useState<ViewMode>('split')
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
@@ -72,7 +74,7 @@ export function Home() {
             {filtered.length === 0 ? (
               <div className="p-9 text-center text-[#333] text-[12px]">
                 <IconMapOff size={28} className="mx-auto mb-2" />
-                nenhum lugar encontrado
+                {t('place.no_results')}
               </div>
             ) : (
               filtered.map((place) => (
