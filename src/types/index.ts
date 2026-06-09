@@ -24,6 +24,7 @@ export interface Place {
   vibe: Vibe
   use_cases: UseCase[]
   tags: string[]
+  notes?: string
   submitted_by: string
   verified: boolean
   created_at: string
