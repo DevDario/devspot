@@ -228,8 +228,9 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
                     onChange={(e) => searchAddress(e.target.value)}
                     placeholder={t('submit.address_placeholder')}
                     className="!pl-[28px]"
+                    disabled={useLocation}
                   />
-                  <IconSearch size={13} className="absolute left-[9px] top-1/2 -translate-y-1/2 text-muted" />
+                  <IconSearch size={13} className="absolute left-[9px] top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
                 </div>
                 {showAddresses && addresses.length > 0 && (
                   <div className="mt-1 bg-surf2 border border-border rounded-[5px] max-h-[140px] overflow-y-auto">
@@ -244,41 +245,33 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
                     ))}
                   </div>
                 )}
-                {errors.address && <p className="text-[10px] text-red-400 mt-1">{errors.address}</p>}
-              </div>
-              <div>
-                <label className="fld-lbl">{t('submit.notes')}</label>
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('submit.notes_placeholder')} />
-              </div>
-              <div>
-                <label className="fld-lbl">{t('submit.address')}</label>
-                <div className="flex items-center justify-between bg-surf2 border border-border rounded-[5px] px-3 py-2">
-                  <span className="text-[11px] text-muted flex items-center gap-2">
-                    <IconMapPin size={14} />
-                    {t('submit.use_location')}
-                  </span>
+                <div className="mt-1.5 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={toggleLocation}
                     disabled={locating}
-                    className={`text-[10px] cursor-pointer rounded-[3px] px-2.5 py-0.5 transition-colors disabled:opacity-40 ${
+                    className={`text-[10px] cursor-pointer rounded-[3px] px-2.5 py-1 transition-colors disabled:opacity-40 flex items-center gap-1 ${
                       useLocation
                         ? 'bg-[rgba(220,220,220,0.08)] border border-[#aaa] text-[#ddd]'
                         : 'bg-transparent border border-border text-dim'
                     }`}
                   >
+                    <IconMapPin size={12} />
                     {useLocation ? t('submit.location_on') : t('submit.location_off')}
                   </button>
+                  {useLocation && locating && (
+                    <span className="text-[10px] text-muted">{t('submit.getting_location')}</span>
+                  )}
+                  {useLocation && !locating && lat !== null && lng !== null && (
+                    <span className="text-[10px] text-dim">{lat.toFixed(4)}, {lng.toFixed(4)}</span>
+                  )}
                 </div>
-                {useLocation && lat !== null && lng !== null && (
-                  <div className="text-[10px] text-muted mt-1">
-                    {lat.toFixed(6)}, {lng.toFixed(6)}
-                  </div>
-                )}
-                {useLocation && locating && (
-                  <div className="text-[10px] text-muted mt-1">{t('submit.getting_location')}</div>
-                )}
                 {locError && <p className="text-[10px] text-red-400 mt-1">{locError}</p>}
+                {errors.address && <p className="text-[10px] text-red-400 mt-1">{errors.address}</p>}
+              </div>
+              <div>
+                <label className="fld-lbl">{t('submit.notes')}</label>
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('submit.notes_placeholder')} />
               </div>
             </div>
           )}
