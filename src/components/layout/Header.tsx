@@ -1,7 +1,8 @@
-import { IconKeyboard, IconLayoutSidebarRight, IconMap, IconList, IconCommand } from '@tabler/icons-react'
+import { IconKeyboard, IconLayoutSidebarRight, IconMap, IconList, IconCommand, IconSun, IconMoon } from '@tabler/icons-react'
 import type { ViewMode } from '@/types'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { useTranslation } from 'react-i18next'
+import { useTheme } from '@/lib/hooks/useTheme'
 
 interface HeaderProps {
   view: ViewMode
@@ -21,6 +22,7 @@ const VIEW_ICONS: Record<string, typeof IconLayoutSidebarRight> = {
 
 export function Header({ view, onViewChange, onSubmitClick, onSearchChange, searchQuery, resultCount, onCmdOpen }: HeaderProps) {
   const { t } = useTranslation()
+  const { theme, toggle: toggleTheme } = useTheme()
   return (
     <div className="px-[14px] md:px-[18px] py-2.5 md:py-3 border-b border-border bg-surf flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -34,6 +36,13 @@ export function Header({ view, onViewChange, onSubmitClick, onSearchChange, sear
           </div>
         </div>
         <div className="flex items-center gap-1 md:gap-1.5">
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-dim border border-border rounded-[4px] bg-transparent cursor-pointer hover:text-muted transition-colors"
+            title={theme === 'dark' ? t('nav.theme_light') : t('nav.theme_dark')}
+          >
+            {theme === 'dark' ? <IconSun size={12} /> : <IconMoon size={12} />}
+          </button>
           <button
             onClick={onCmdOpen}
             className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-dim border border-border rounded-[4px] bg-transparent cursor-pointer hover:text-muted transition-colors"

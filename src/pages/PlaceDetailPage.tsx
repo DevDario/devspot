@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { IconArrowLeft, IconBuilding, IconCoffee, IconRoute, IconTerminal2 } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import { useState, useCallback, useEffect } from 'react'
-import type { Place, Review } from '@/types'
+import { useState, useCallback } from 'react'
+import type { Review } from '@/types'
 import { StarRating } from '@/components/review/StarRating'
 import { PriceBar } from '@/components/ui/PriceBar'
 import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
@@ -16,41 +16,55 @@ import { fetchPlaceById, fetchReviewsForPlace, fetchPlacePhotos, createReview } 
 import { useTheme } from '@/lib/hooks/useTheme'
 import { useAuth } from '@/lib/supabase/auth'
 import { SubmitReviewForm } from '@/components/review/SubmitReviewForm'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export function PlaceDetailPage() {
   const { t } = useTranslation()
   const { theme } = useTheme()
   const { id } = useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  const [place, setPlace] = useState<Place | null>(null)
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [photos, setPhotos] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [route, setRoute] = useState<RouteData | null>(null)
   const [routing, setRouting] = useState(false)
   const [routeError, setRouteError] = useState<string | null>(null)
   const [showReviewForm, setShowReviewForm] = useState(false)
   const { user } = useAuth()
 
-  useEffect(() => {
-    if (!id) return
-    setLoading(true)
-    Promise.all([
-      fetchPlaceById(id),
-      fetchReviewsForPlace(id),
-      fetchPlacePhotos(id),
-    ])
-      .then(([p, r, ph]) => {
-        if (!p) { setError('Place not found'); return }
-        setPlace(p)
-        setReviews(r)
-        setPhotos(ph)
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [id])
+  const { data: place, isLoading: placeLoading, error: placeError } = useQuery({
+    queryKey: ['place', id],
+    queryFn: () => fetchPlaceById(id!),
+    enabled: !!id,
+  })
+
+  const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
+    queryKey: ['reviews', id],
+    queryFn: () => fetchReviewsForPlace(id!),
+    enabled: !!id,
+  })
+
+  const { data: photos = [] } = useQuery({
+    queryKey: ['photos', id],
+    queryFn: () => fetchPlacePhotos(id!),
+    enabled: !!id,
+  })
+
+  const reviewMutation = useMutation({
+    mutationFn: async (review: {
+      rating: number
+      wifi_quality: number | null
+      noise_level: string | null
+      power_outlets: boolean | null
+      body: string
+    }) => {
+      if (!user || !id) throw new Error('not authenticated')
+      await createReview({ ...review, place_id: id, user_id: user.id })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', id] })
+      setShowReviewForm(false)
+    },
+  })
 
   const handleRoute = useCallback(async () => {
     if (!place) return
@@ -77,14 +91,10 @@ export function PlaceDetailPage() {
     power_outlets: boolean | null
     body: string
   }) => {
-    if (!user || !id) return
-    await createReview({ ...review, place_id: id, user_id: user.id })
-    const updated = await fetchReviewsForPlace(id)
-    setReviews(updated)
-    setShowReviewForm(false)
-  }, [user, id])
+    await reviewMutation.mutateAsync(review)
+  }, [reviewMutation])
 
-  if (loading) {
+  if (placeLoading) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <Loader2 className="size-6 animate-spin text-muted" />
@@ -92,14 +102,14 @@ export function PlaceDetailPage() {
     )
   }
 
-  if (error || !place) {
+  if (placeError || !place) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="text-center">
           <IconTerminal2 size={32} className="block mx-auto mb-3 text-dim" />
-          <p className="text-[12px] text-muted mb-3">{error || 'Place not found'}</p>
+          <p className="text-[12px] text-muted mb-3">{t('place.not_found')}</p>
           <button onClick={() => navigate('/')} className="text-[11px] text-txt border border-border rounded-[4px] px-3 py-1.5 bg-surf2 cursor-pointer">
-            back to map
+            {t('place.back_to_map')}
           </button>
         </div>
       </div>
@@ -112,15 +122,15 @@ export function PlaceDetailPage() {
 
   return (
     <div className="min-h-screen bg-bg">
-      <div className="max-w-2xl mx-auto px-4 py-4">
+      <div className="max-w-2xl mx-auto px-3 md:px-4 py-3 md:py-4">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-muted text-[12px] mb-4 cursor-pointer bg-none border-none"
+          className="flex items-center gap-1 text-muted text-[12px] mb-3 md:mb-4 cursor-pointer bg-none border-none"
         >
           <IconArrowLeft size={14} /> {t('submit.back')}
         </button>
 
-        <div className="bg-surf border border-border rounded-[10px] p-5 mb-4">
+        <div className="bg-surf border border-border rounded-[10px] p-4 md:p-5 mb-3 md:mb-4">
           <div className="flex items-start gap-3 mb-3">
             <div className="w-10 h-10 bg-surf2 border border-border rounded-[8px] flex items-center justify-center flex-shrink-0">
               {place.type === 'cowork' ? (
@@ -129,12 +139,12 @@ export function PlaceDetailPage() {
                 <IconCoffee size={20} color="#b0b0b0" />
               )}
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <h1 className="text-[18px] text-txt">{place.name}</h1>
+                <h1 className="text-[16px] md:text-[18px] text-txt truncate">{place.name}</h1>
                 {place.verified && <VerifiedBadge />}
               </div>
-              <div className="flex items-center gap-3 text-[11px] text-muted flex-wrap">
+              <div className="flex items-center gap-2 text-[11px] text-muted flex-wrap">
                 <span>{place.type}</span>
                 <span>·</span>
                 <span>{place.hours}</span>
@@ -153,7 +163,7 @@ export function PlaceDetailPage() {
           </div>
 
           <div className="mb-3">
-            <span className="text-[10px] text-muted block mb-1.5">Tags</span>
+            <span className="text-[10px] text-muted block mb-1.5">{t('place.tags')}</span>
             <div className="flex flex-wrap gap-1.5">
               {place.use_cases.map((u) => (
                 <UseCaseBadge key={u} useCase={u} />
@@ -169,9 +179,9 @@ export function PlaceDetailPage() {
           </div>
         </div>
 
-        <div className="bg-surf border border-border rounded-[10px] p-5 mb-4">
+        <div className="bg-surf border border-border rounded-[10px] p-4 md:p-5 mb-3 md:mb-4">
           <h2 className="text-[14px] text-txt mb-3">{t('place.location')}</h2>
-          <div className="h-[180px] rounded-[6px] border border-border overflow-hidden">
+          <div className="h-[140px] md:h-[180px] rounded-[6px] border border-border overflow-hidden">
             <Map theme={theme} center={[place.lng, place.lat]} zoom={15} className="h-full w-full">
               <MapControls showZoom showCompass />
               <MapMarker longitude={place.lng} latitude={place.lat}>
@@ -191,8 +201,8 @@ export function PlaceDetailPage() {
               )}
             </Map>
           </div>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-[10px] text-dim">{place.address}</span>
+          <div className="mt-2 flex flex-col md:flex-row md:items-center md:justify-between gap-1.5">
+            <span className="text-[10px] text-dim truncate">{place.address}</span>
             <div className="flex items-center gap-2">
               {route && (
                 <span className="text-[10px] text-muted">
@@ -209,22 +219,22 @@ export function PlaceDetailPage() {
         </div>
 
         {photos.length > 0 && (
-          <div className="bg-surf border border-border rounded-[10px] p-5 mb-4">
-            <h2 className="text-[14px] text-txt mb-3">Photos</h2>
-            <div className="flex gap-2 overflow-x-auto">
+          <div className="bg-surf border border-border rounded-[10px] p-4 md:p-5 mb-3 md:mb-4">
+            <h2 className="text-[14px] text-txt mb-3">{t('place.photos')}</h2>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mb-1">
               {photos.map((url, i) => (
-                <img key={i} src={url} alt={`${place.name} photo ${i + 1}`} className="h-24 w-24 rounded-[6px] object-cover border border-border flex-shrink-0" />
+                <img key={i} src={url} alt={`${place.name} photo ${i + 1}`} className="h-20 md:h-24 w-20 md:w-24 rounded-[6px] object-cover border border-border flex-shrink-0" />
               ))}
             </div>
           </div>
         )}
 
-        <div className="bg-surf border border-border rounded-[10px] p-5 mb-4">
+        <div className="bg-surf border border-border rounded-[10px] p-4 md:p-5 mb-3 md:mb-4">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-[14px] text-txt">{t('place.reviews')}</h2>
             <button
               onClick={() => setShowReviewForm((p) => !p)}
-              className="bg-[#555] border-none text-txt rounded-[5px] px-3 py-1.5 text-[11px] cursor-pointer"
+              className="bg-[#555] border-none text-txt rounded-[5px] px-2.5 md:px-3 py-1.5 text-[11px] cursor-pointer"
             >
               {t('place.write_review')}
             </button>

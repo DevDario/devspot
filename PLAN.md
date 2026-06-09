@@ -8,6 +8,8 @@
 - **i18n:** react-i18next + i18next-browser-languagedetector (pt default, en fallback)
 - **UI:** shadcn/ui (Button, Map, MapMarker, MapRoute, etc.)
 - **Backend:** Supabase (Postgres + Auth + Storage)
+- **Data Fetching:** TanStack Query (@tanstack/react-query) — caching, mutations, auto-refetch
+- **Validation:** Zod (zod) — schema-based form validation
 - **Icons:** Tabler Icons (@tabler/icons-react), lucide-react (shadcn dependency)
 - **Font:** DotGothic16 (Google Fonts)
 
@@ -42,9 +44,30 @@ Public OSRM API at `router.project-osrm.org` for driving directions:
 - Language detection via localStorage → navigator
 - All user-facing strings in `src/lib/i18n.ts`
 - `LanguageSwitcher` in header toggles pt ↔ en
+- All hardcoded English strings replaced with t() calls
+
+### Data Fetching Strategy
+- TanStack Query for all Supabase data operations
+- `useQuery` for reads (places, reviews, profile)
+- `useMutation` for writes (createPlace, createReview)
+- Automatic cache invalidation on mutations
+- staleTime: 15-30s for responsive UI
+
+### Form Validation Strategy
+- Zod schemas in `src/lib/schemas.ts` (placeSchema, reviewSchema)
+- Real-time field validation on submit
+- Error messages use i18n t() keys
+- Address field with Nominatim autocomplete geocoding
+
+### Address Input
+- Text input with Nominatim OpenStreetMap API autocomplete
+- 500ms debounce, 1 req/sec rate limit respected
+- Country filter: Angola (ao)
+- Lat/lng populated from selected address result
+- Falls back to geolocation toggle for location
 
 ### State Management
-Simple React state with props drilling. Theme + Auth via React context. No external state library.
+TanStack Query for server state. React context for theme + auth. Local component state for forms and UI.
 
 ### CSS Strategy
 Tailwind v4 for utility classes + custom `.ds-*` component classes. Shadcn CSS variables for system-level theming.
@@ -55,6 +78,7 @@ Ctrl/Cmd+K opens overlay with 18 functional actions:
 - Switch view (split/map/list)
 - Toggle filters (vibe, use case, type)
 - Arrow key navigation, Enter to execute
+- All labels use t() for i18n
 
 ## Progress Tracking
 
@@ -62,7 +86,7 @@ Ctrl/Cmd+K opens overlay with 18 functional actions:
 - [x] Project scaffold (Vite + React + TS + Tailwind)
 - [x] Design tokens in Tailwind theme
 - [x] Component CSS classes (ds-pill, ds-tag, ds-card, etc.)
-- [x] TypeScript types (Place, Review, User, Filters, etc.)
+- [x] TypeScript types (Place, PlaceWithRating, Review, User, Filters, etc.)
 - [x] shadcn/ui + mapcn initialized
 - [x] Supabase project created and linked (brdesbsngyoqixfdnfgd)
 - [x] Database schema deployed (places, reviews, profiles, saves + RLS + storage)
@@ -83,40 +107,56 @@ Ctrl/Cmd+K opens overlay with 18 functional actions:
 ### i18n
 - [x] i18n setup (react-i18next, pt/en locales)
 - [x] LanguageSwitcher in header
-- [x] All components use useTranslation()
+- [x] All components use useTranslation() — no hardcoded strings
 - [x] Default language set to Portuguese
+- [x] Complete PT ↔ EN translation coverage
 
 ### Theme
 - [x] Dark theme default (class="dark" on html)
 - [x] Light theme via .light CSS class
 - [x] ThemeProvider with localStorage persistence
 - [x] Map theme sync
+- [x] Theme toggle button in header (sun/moon icon)
 
 ### Command Palette
 - [x] Ctrl/Cmd+K overlay with keyboard navigation
+- [x] i18n support for all labels and groups
 - [x] Functional: submit, lang, theme toggle
 - [x] Functional: view switch (split/map/list)
 - [x] Functional: filter toggle (vibe, use, type)
 
-### UI/UX
-- [x] Dev-focused empty states with action buttons
-- [x] Loading spinners, error states with retry
-- [x] Emoji-free (all icons from Tabler Icons)
-- [x] ProfilePage
+### TanStack Query Integration
+- [x] @tanstack/react-query installed
+- [x] QueryClientProvider wrapping app
+- [x] useQuery for places, reviews, profile data
+- [x] useMutation for createPlace, createReview
+- [x] Cache invalidation on mutations for auto-refresh
+
+### Form Validation
+- [x] Zod schemas (placeSchema, reviewSchema)
+- [x] Validation errors displayed below fields
+- [x] i18n error messages via t()
+- [x] Submit disabled during mutation (loading state)
+
+### Address Input
+- [x] Address text field with Nominatim autocomplete
+- [x] Geolocation toggle (ON/OFF) as alternative
+- [x] Lat/lng populated from selected address
+- [x] Validation: address required when location OFF
 
 ### Pages
-- [x] Home (Supabase data, cmd palette, auth guard)
-- [x] PlaceDetailPage (Supabase data, real reviews, photos)
+- [x] Home (TanStack Query, real ratings, cmd palette, auth guard)
+- [x] PlaceDetailPage (TanStack Query, real reviews, photos, single back button)
 - [x] SignInPage (i18n)
 - [x] SignUpPage (i18n)
-- [x] ProfilePage (i18n)
+- [x] ProfilePage (TanStack Query, real places with ratings)
 
 ### Remaining
 - [ ] Seed data (sample places/reviews for Luanda)
-- [ ] PlaceCard link to detail page
-- [ ] Review submission form
-- [ ] Profile page with user's places/reviews
-- [ ] Production build test and optimization
+- [ ] Code splitting for maplibre-gl (large chunk warning)
+- [ ] Review display: show wifi/noise/power details
+- [ ] Edit/delete own places and reviews
+- [ ] Real-time updates via Supabase subscriptions
 
 ## Do's
 
@@ -127,6 +167,7 @@ Ctrl/Cmd+K opens overlay with 18 functional actions:
 - Write clean, minimal code without comments
 - Commit each file with a comprehensive message
 - Build must pass before committing
+- Use TanStack Query for all server data
 
 ## Don'ts
 
@@ -134,12 +175,13 @@ Ctrl/Cmd+K opens overlay with 18 functional actions:
 - Don't use emojis in code — use Tabler Icons
 - Don't over-engineer state management
 - Don't add features not in the PRD scope
+- Don't hardcode strings — always use t()
 
 ## Current Status
-Production-ready MVP with real Supabase data. mapcn/MapLibre GL map with theme-synced basemaps. OSRM routing. i18n (Portuguese default, English toggle). Command palette (Ctrl+K) with 18 actions. Dark/light theme with persistence. Auth with login/signup. Photo uploads to Supabase Storage.
+Production-ready MVP with TanStack Query, Zod validation, real Supabase data, and responsive UI. mapcn/MapLibre GL map with theme-synced basemaps. OSRM routing. Full i18n (Portuguese default, English toggle) with no hardcoded strings. Command palette (Ctrl+K) with 18 actions and i18n labels. Dark/light theme with header toggle button and persistence. Auth with login/signup/Google OAuth. Photo uploads to Supabase Storage. Address input with Nominatim geocoding. Place ratings calculated from real reviews.
 
 ## Known Issues
-- PlaceCard doesn't link to detail page (needs PlaceCard update)
-- No review submission form yet
-- Profile page has no user data
 - Chunk size warning for maplibre-gl (needs code splitting)
+- Review display missing wifi/noise/power details (only rating + body shown)
+- No edit/delete for own places/reviews
+- No seed data for Luanda places in the database

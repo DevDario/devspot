@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Place, ViewMode, Filters, PlaceType, Vibe, UseCase } from '@/types'
+import type { ViewMode, Filters, PlaceWithRating } from '@/types'
+import type { PlaceFormData } from '@/lib/schemas'
 import { useTranslation } from 'react-i18next'
 import { Header } from '@/components/layout/Header'
 import { FilterBar } from '@/components/filters/FilterBar'
@@ -9,14 +10,14 @@ import { DevSpotMap } from '@/components/map/DevSpotMap'
 import { SubmitPlaceModal } from '@/components/place/SubmitPlaceModal'
 import { CmdPalette } from '@/components/cmd/CmdPalette'
 import { filterPlaces } from '@/lib/utils/filters'
-import { fetchPlaces, createPlace, uploadPhoto } from '@/lib/supabase/places'
+import { fetchPlacesWithRatings, createPlace, uploadPhoto } from '@/lib/supabase/places'
 import { useAuth } from '@/lib/supabase/auth'
 import { useTheme } from '@/lib/hooks/useTheme'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   IconMapOff,
   IconSearch,
   IconPlus,
-  IconLogin,
   IconTerminal2,
 } from '@tabler/icons-react'
 import { Loader2 } from 'lucide-react'
@@ -28,23 +29,20 @@ export function Home() {
   const { user } = useAuth()
   const { theme } = useTheme()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  const [places, setPlaces] = useState<Place[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [view, setView] = useState<ViewMode>('split')
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null)
+  const [selectedPlace, setSelectedPlace] = useState<PlaceWithRating | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [showCmd, setShowCmd] = useState(false)
 
-  useEffect(() => {
-    fetchPlaces()
-      .then(setPlaces)
-      .catch((err) => setLoadError(err.message))
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: places = [], isLoading, error } = useQuery({
+    queryKey: ['places'],
+    queryFn: fetchPlacesWithRatings,
+    staleTime: 15_000,
+  })
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -57,25 +55,50 @@ export function Home() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  const filtered = filterPlaces(places, filters, searchQuery)
-
-  const handleSubmit = useCallback(
-    async (partial: Partial<Place>, photoFiles: File[]) => {
-      if (!user) return
-      const lat = partial.lat ?? -8.84
-      const lng = partial.lng ?? 13.21
-      const created = await createPlace({ ...partial, lat, lng }, user.id)
-      if (created && photoFiles.length > 0) {
+  const createMutation = useMutation({
+    mutationFn: async ({ data: form, photos }: { data: PlaceFormData; photos: File[] }) => {
+      if (!user) throw new Error('not authenticated')
+      const lat = form.useLocation ? (form.lat ?? -8.84) : (form.lat ?? -8.84)
+      const lng = form.useLocation ? (form.lng ?? 13.21) : (form.lng ?? 13.21)
+      const created = await createPlace({
+        name: form.name,
+        type: form.type,
+        lat,
+        lng,
+        address: form.address,
+        hours: form.hours,
+        price_range: form.price_range,
+        vibe: form.vibe,
+        use_cases: form.use_cases,
+        tags: form.tags ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
+        notes: form.notes,
+        submitted_by: user.id,
+        verified: false,
+        created_at: '',
+        updated_at: '',
+        id: '',
+      }, user.id)
+      if (created && photos.length > 0) {
         await Promise.all(
-          photoFiles.map((f, i) =>
+          photos.map((f, i) =>
             uploadPhoto('place-photos', f, `${created.id}/${i}-${f.name}`)
           )
         )
       }
-      const updated = await fetchPlaces()
-      setPlaces(updated)
+      return created
     },
-    [user]
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['places'] })
+    },
+  })
+
+  const filtered = filterPlaces(places, filters as any, searchQuery) as PlaceWithRating[]
+
+  const handleSubmit = useCallback(
+    async (form: PlaceFormData, photoFiles: File[]) => {
+      await createMutation.mutateAsync({ data: form, photos: photoFiles })
+    },
+    [createMutation]
   )
 
   const openSubmit = () => {
@@ -106,32 +129,32 @@ export function Home() {
             className={`overflow-y-auto border-r border-border flex-shrink-0 ${view === 'list' ? 'w-full' : 'max-md:w-full md:w-[330px]'}`}
             onClick={() => setSelectedPlace(null)}
           >
-            {loading ? (
+            {isLoading ? (
               <div className="flex items-center justify-center h-40">
                 <Loader2 className="size-5 animate-spin text-muted" />
               </div>
-            ) : loadError ? (
+            ) : error ? (
               <div className="p-9 text-center">
                 <IconTerminal2 size={28} className="block mx-auto mb-2 text-muted" />
-                <p className="text-[11px] text-muted mb-3">{loadError}</p>
+                <p className="text-[11px] text-muted mb-3">{error.message}</p>
                 <button
-                  onClick={() => { setLoading(true); setLoadError(null); fetchPlaces().then(setPlaces).catch((e) => setLoadError(e.message)).finally(() => setLoading(false)) }}
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['places'] })}
                   className="text-[11px] text-txt border border-border rounded-[4px] px-3 py-1 bg-surf2 cursor-pointer"
                 >
-                  retry
+                  {t('place.retry')}
                 </button>
               </div>
             ) : filtered.length === 0 ? (
               <div className="p-9 text-center">
                 <IconMapOff size={32} className="block mx-auto mb-3 text-dim" />
                 <p className="text-[12px] text-muted mb-1">{t('place.no_results')}</p>
-                <p className="text-[10px] text-dim mb-4">try adjusting filters or search</p>
+                <p className="text-[10px] text-dim mb-4">{t('place.no_results_hint')}</p>
                 <button
                   onClick={openSubmit}
                   className="inline-flex items-center gap-1.5 text-[11px] text-txt border border-border rounded-[4px] px-3 py-1.5 bg-surf2 cursor-pointer"
                 >
                   <IconPlus size={12} />
-                  add the first spot
+                  {t('place.add_first')}
                 </button>
               </div>
             ) : (
@@ -152,9 +175,9 @@ export function Home() {
         {view !== 'list' && (
           <DevSpotMap
             theme={theme}
-            places={filtered}
-            selectedPlace={selectedPlace}
-            onSelectPlace={setSelectedPlace}
+            places={filtered as any}
+            selectedPlace={selectedPlace as any}
+            onSelectPlace={(p: any) => setSelectedPlace(p)}
           />
         )}
       </div>

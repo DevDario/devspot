@@ -1,16 +1,19 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconX, IconPhoto, IconMapPin } from '@tabler/icons-react'
-import type { Place, PlaceType, Vibe, UseCase, PriceRange } from '@/types'
+import { IconX, IconPhoto, IconMapPin, IconSearch } from '@tabler/icons-react'
+import type { PlaceType, Vibe, UseCase, PriceRange } from '@/types'
+import { placeSchema, type PlaceFormData } from '@/lib/schemas'
 
 interface SubmitPlaceModalProps {
   open: boolean
   onClose: () => void
-  onSubmit: (place: Partial<Place>, photos: File[]) => void
+  onSubmit: (place: PlaceFormData, photos: File[]) => Promise<void>
 }
 
 const VIBE_OPTIONS: Vibe[] = ['calm', 'retro', 'modern']
 const USE_OPTIONS: UseCase[] = ['coding', 'cowork', 'meetings', 'hackathon', 'chill']
+
+let nominatimTimer: ReturnType<typeof setTimeout> | null = null
 
 export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalProps) {
   const { t } = useTranslation()
@@ -24,22 +27,27 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
   const [tags, setTags] = useState('')
   const [notes, setNotes] = useState('')
   const [photos, setPhotos] = useState<File[]>([])
+  const [address, setAddress] = useState('')
   const [lat, setLat] = useState<number | null>(null)
   const [lng, setLng] = useState<number | null>(null)
   const [locating, setLocating] = useState(false)
   const [locError, setLocError] = useState<string | null>(null)
   const [useLocation, setUseLocation] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [submitting, setSubmitting] = useState(false)
+  const [addresses, setAddresses] = useState<{ display: string; lat: number; lng: number }[]>([])
+  const [showAddresses, setShowAddresses] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   if (!open) return null
 
   const getLocation = () => {
-    if (!navigator.geolocation) { setLocError('Geolocation not available'); return }
+    if (!navigator.geolocation) { setLocError(t('map.error_location')); return }
     setLocating(true)
     setLocError(null)
     navigator.geolocation.getCurrentPosition(
       (pos) => { setLat(pos.coords.latitude); setLng(pos.coords.longitude); setLocating(false) },
-      () => { setLocError('Could not get location'); setLocating(false) },
+      () => { setLocError(t('map.error_location')); setLocating(false) },
       { enableHighAccuracy: true },
     )
   }
@@ -60,16 +68,95 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
     setUseCases((prev) => (prev.includes(u) ? prev.filter((x) => x !== u) : [...prev, u]))
   }
 
-  const handleSubmit = () => {
+  const searchAddress = (q: string) => {
+    setAddress(q)
+    if (nominatimTimer) clearTimeout(nominatimTimer)
+    if (q.length < 4) { setAddresses([]); setShowAddresses(false); return }
+    nominatimTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&countrycodes=ao`,
+          { headers: { 'User-Agent': 'DevSpot/1.0' } }
+        )
+        const data = await res.json()
+        setAddresses(
+          (data as { display_name: string; lat: string; lon: string }[]).map((d) => ({
+            display: d.display_name,
+            lat: parseFloat(d.lat),
+            lng: parseFloat(d.lon),
+          }))
+        )
+        setShowAddresses(true)
+      } catch { setAddresses([]) }
+    }, 500)
+  }
+
+  const selectAddress = (addr: { display: string; lat: number; lng: number }) => {
+    setAddress(addr.display)
+    setLat(addr.lat)
+    setLng(addr.lng)
+    setShowAddresses(false)
+  }
+
+  const handleSubmit = async () => {
+    setSubmitting(true)
+    setErrors({})
+
     const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean)
-    onSubmit({ name, type, lat: lat ?? undefined, lng: lng ?? undefined, hours, vibe, use_cases: useCases, price_range: price, tags: tagList, notes }, photos)
-    reset()
-    onClose()
+
+    const formData: PlaceFormData = {
+      name,
+      type,
+      hours,
+      vibe,
+      use_cases: useCases,
+      price_range: price,
+      tags: tagList.join(','),
+      notes,
+      address,
+      lat: useLocation ? lat : (addresses.length > 0 ? lat : null),
+      lng: useLocation ? lng : (addresses.length > 0 ? lng : null),
+      useLocation,
+    }
+
+    const result = placeSchema.safeParse(formData)
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {}
+      for (const issue of result.error.issues) {
+        const key = issue.path[0] as string
+        const msgKey = issue.message
+        fieldErrors[key] = t(`submit.${msgKey}` as any)
+      }
+      if (!useLocation && !address.trim()) {
+        fieldErrors.address = t('submit.required_address')
+      }
+      setErrors(fieldErrors)
+      setSubmitting(false)
+      return
+    }
+
+    if (!useLocation && !address.trim()) {
+      setErrors({ address: t('submit.required_address') })
+      setSubmitting(false)
+      return
+    }
+
+    try {
+      await onSubmit(formData, photos)
+      reset()
+      onClose()
+    } catch {
+      setErrors({ submit: t('submit.error') })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const reset = () => {
     setStep(0); setName(''); setType('café'); setHours(''); setVibe('calm')
-    setUseCases([]); setPrice(2); setTags(''); setNotes(''); setPhotos([]); setLat(null); setLng(null); setLocError(null); setUseLocation(false)
+    setUseCases([]); setPrice(2); setTags(''); setNotes(''); setPhotos([])
+    setLat(null); setLng(null); setLocError(null); setUseLocation(false)
+    setErrors({}); setAddress(''); setAddresses([]); setShowAddresses(false)
   }
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,7 +196,13 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
             <div className="flex flex-col gap-2.5">
               <div>
                 <label className="fld-lbl">{t('submit.name')}</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('submit.name_placeholder')} />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t('submit.name_placeholder')}
+                />
+                {errors.name && <p className="text-[10px] text-red-400 mt-1">{errors.name}</p>}
               </div>
               <div>
                 <label className="fld-lbl">{t('submit.type')}</label>
@@ -127,15 +220,42 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
                 <input type="text" value={hours} onChange={(e) => setHours(e.target.value)} placeholder={t('submit.hours_placeholder')} />
               </div>
               <div>
+                <label className="fld-lbl">{t('submit.address')}</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => searchAddress(e.target.value)}
+                    placeholder={t('submit.address_placeholder')}
+                    className="!pl-[28px]"
+                  />
+                  <IconSearch size={13} className="absolute left-[9px] top-1/2 -translate-y-1/2 text-muted" />
+                </div>
+                {showAddresses && addresses.length > 0 && (
+                  <div className="mt-1 bg-surf2 border border-border rounded-[5px] max-h-[140px] overflow-y-auto">
+                    {addresses.map((a, i) => (
+                      <button
+                        key={i}
+                        className="w-full text-left text-[10px] text-muted px-2 py-1.5 hover:bg-[rgba(255,255,255,0.05)] border-b border-border last:border-none cursor-pointer"
+                        onClick={() => selectAddress(a)}
+                      >
+                        {a.display}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {errors.address && <p className="text-[10px] text-red-400 mt-1">{errors.address}</p>}
+              </div>
+              <div>
                 <label className="fld-lbl">{t('submit.notes')}</label>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('submit.notes_placeholder')} />
               </div>
               <div>
-                <label className="fld-lbl">LOCATION</label>
+                <label className="fld-lbl">{t('submit.address')}</label>
                 <div className="flex items-center justify-between bg-surf2 border border-border rounded-[5px] px-3 py-2">
                   <span className="text-[11px] text-muted flex items-center gap-2">
                     <IconMapPin size={14} />
-                    use my current location
+                    {t('submit.use_location')}
                   </span>
                   <button
                     type="button"
@@ -147,7 +267,7 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
                         : 'bg-transparent border border-border text-dim'
                     }`}
                   >
-                    {useLocation ? 'ON' : 'OFF'}
+                    {useLocation ? t('submit.location_on') : t('submit.location_off')}
                   </button>
                 </div>
                 {useLocation && lat !== null && lng !== null && (
@@ -156,7 +276,7 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
                   </div>
                 )}
                 {useLocation && locating && (
-                  <div className="text-[10px] text-muted mt-1">getting location…</div>
+                  <div className="text-[10px] text-muted mt-1">{t('submit.getting_location')}</div>
                 )}
                 {locError && <p className="text-[10px] text-red-400 mt-1">{locError}</p>}
               </div>
@@ -205,9 +325,10 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
                   className="flex items-center gap-2 text-[11px] text-muted border border-border rounded-[5px] px-3 py-2 bg-surf2 cursor-pointer w-full hover:text-txt transition-colors"
                 >
                   <IconPhoto size={14} />
-                  {photos.length ? `${photos.length} file(s) selected` : 'upload photos'}
+                  {photos.length ? `${photos.length} ${t('submit.photos_selected')}` : t('submit.photo_btn')}
                 </button>
               </div>
+              {errors.submit && <p className="text-[10px] text-red-400 mt-1">{errors.submit}</p>}
             </div>
           )}
         </div>
@@ -220,10 +341,11 @@ export function SubmitPlaceModal({ open, onClose, onSubmit }: SubmitPlaceModalPr
           )}
           <button
             onClick={() => { if (step < STEPS.length - 1) { setStep((s) => s + 1) } else { handleSubmit() } }}
-            className="flex-[2] bg-[#555] border-none text-txt rounded-[5px] py-[9px] text-[11px] cursor-pointer"
+            disabled={submitting}
+            className="flex-[2] bg-[#555] border-none text-txt rounded-[5px] py-[9px] text-[11px] cursor-pointer disabled:opacity-40"
             style={{ background: step === STEPS.length - 1 ? '#777' : '#555' }}
           >
-            {step < STEPS.length - 1 ? t('submit.next') : t('submit.submit')}
+            {submitting ? t('submit.uploading') : step < STEPS.length - 1 ? t('submit.next') : t('submit.submit')}
           </button>
         </div>
       </div>

@@ -31,6 +31,11 @@ export interface Place {
   updated_at: string
 }
 
+export interface PlaceWithRating extends Place {
+  avgRating: number
+  reviewCount: number
+}
+
 export interface Review {
   id: string
   place_id: string

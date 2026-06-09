@@ -1,10 +1,10 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { IconArrowLeft, IconKeyboard, IconTerminal2 } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/lib/supabase/auth'
 import { fetchProfileByUsername, fetchPlacesByUserId, fetchReviewsByUserId } from '@/lib/supabase/places'
-import type { User, Place, Review } from '@/types'
+import type { PlaceWithRating } from '@/types'
 import { PlaceCard } from '@/components/place/PlaceCard'
 import { Loader2 } from 'lucide-react'
 
@@ -14,29 +14,25 @@ export function ProfilePage() {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  const [profile, setProfile] = useState<User | null>(null)
-  const [places, setPlaces] = useState<Place[]>([])
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: profile, isLoading: profileLoading, error: profileError } = useQuery({
+    queryKey: ['profile', username],
+    queryFn: () => fetchProfileByUsername(username!),
+    enabled: !!username,
+  })
 
-  useEffect(() => {
-    if (!username) { setLoading(false); return }
-    setLoading(true)
-    fetchProfileByUsername(username)
-      .then(async (p) => {
-        if (!p) { setError('User not found'); setLoading(false); return }
-        setProfile(p)
-        const [pl, rv] = await Promise.all([
-          fetchPlacesByUserId(p.id),
-          fetchReviewsByUserId(p.id),
-        ])
-        setPlaces(pl)
-        setReviews(rv)
-        setLoading(false)
-      })
-      .catch((err) => { setError(err.message); setLoading(false) })
-  }, [username])
+  const { data: places = [], isLoading: placesLoading } = useQuery({
+    queryKey: ['profile-places', profile?.id],
+    queryFn: () => fetchPlacesByUserId(profile!.id),
+    enabled: !!profile,
+  })
+
+  const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
+    queryKey: ['profile-reviews', profile?.id],
+    queryFn: () => fetchReviewsByUserId(profile!.id),
+    enabled: !!profile,
+  })
+
+  const loading = profileLoading || (profile && (placesLoading || reviewsLoading))
 
   if (loading) {
     return (
@@ -46,19 +42,25 @@ export function ProfilePage() {
     )
   }
 
-  if (error || !profile) {
+  if (profileError || !profile) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="text-center">
           <IconTerminal2 size={32} className="block mx-auto mb-3 text-dim" />
-          <p className="text-[12px] text-muted mb-3">{error || 'User not found'}</p>
+          <p className="text-[12px] text-muted mb-3">{t('profile.not_found')}</p>
           <button onClick={() => navigate('/')} className="text-[11px] text-txt border border-border rounded-[4px] px-3 py-1.5 bg-surf2 cursor-pointer">
-            back to map
+            {t('profile.back_to_map')}
           </button>
         </div>
       </div>
     )
   }
+
+  const placesWithRating: PlaceWithRating[] = places.map((p) => {
+    const placeReviews = reviews.filter((r) => r.place_id === p.id)
+    const avg = placeReviews.length ? placeReviews.reduce((s, r) => s + r.rating, 0) / placeReviews.length : 0
+    return { ...p, avgRating: avg, reviewCount: placeReviews.length }
+  })
 
   return (
     <div className="min-h-screen bg-bg">
@@ -113,7 +115,7 @@ export function ProfilePage() {
             <p className="text-[11px] text-muted text-center py-4">{t('profile.no_places')}</p>
           ) : (
             <div className="flex flex-col">
-              {places.map((p) => (
+              {placesWithRating.map((p) => (
                 <PlaceCard
                   key={p.id}
                   place={p}

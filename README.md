@@ -11,36 +11,11 @@
 
 ---
 
-## Why This Project?
+## Problem
 
-**The problem:** Luanda has amazing cafés, coworking spaces, and esplanadas — but there's no curated way for developers to know which ones have good WiFi, quiet corners for coding, or power outlets that actually work. Google Maps doesn't capture these "dev signals."
+Luanda has amazing cafés, coworking spaces, and esplanadas — but there's no curated way for developers to know which ones have good WiFi, quiet corners for coding, or power outlets that actually work. Google Maps doesn't capture these "dev signals."
 
-**DevSpot solves this** with a community-driven map where tech folks share the spots that work for them. Think of it as "Wifi Coffee for Angolan devs" — but built properly.
-
-### What I'm Learning
-
-This project is designed to teach and demonstrate real-world full-stack development skills:
-
-| Concept | How DevSpot Implements It |
-|---------|--------------------------|
-| **TypeScript end-to-end** | Shared types from DB schema → API → React components |
-| **Auth + Authorization** | Supabase Auth with RLS policies at the database level |
-| **Full-text search** | PostgreSQL `tsvector` for searching places and tags |
-| **Community-driven content** | User-submitted places with moderation queue |
-| **Geospatial features** | Location-based queries and map rendering |
-| **File uploads** | Photo uploads via Supabase Storage |
-| **Dark mode by default** | Monospace terminal aesthetic powered by Tailwind v4 |
-| **SPA routing** | React Router for client-side navigation |
-| **State management patterns** | Lifting state up, prop drilling, context when needed |
-| **API design** | RESTful routes with Supabase as the backend |
-
-**The key insight:** This isn't a toy project. It's solving a real problem for the Angolan tech community, and the architecture reflects production patterns. A recruiter looking at this will see someone who understands:
-
-- Database schema design with proper constraints and RLS
-- Clean separation of types, utilities, and components
-- Responsive UI with a consistent design system
-- Authentication flows
-- Community/moderated content patterns
+DevSpot solves this with a community-driven map where tech folks share the spots that work for them.
 
 ---
 
@@ -48,12 +23,15 @@ This project is designed to teach and demonstrate real-world full-stack developm
 
 ```
 Frontend:  Vite 8 + React 19 + TypeScript + Tailwind CSS v4
-Map:       SVG grid map (Mapbox-ready)
+Map:       MapLibre GL via mapcn (free CARTO tiles, no API key)
 Icons:     Tabler Icons
-Backend:   Supabase (Postgres + Auth + Storage + Realtime)
-Auth:      Supabase Auth (email/password + Google OAuth)
 Routing:   React Router v7
-Hosting:   Vercel-ready
+Caching:   TanStack Query
+Validation: Zod
+i18n:      react-i18next (PT default, EN fallback)
+Backend:   Supabase (Postgres + Auth + Storage)
+Auth:      Supabase Auth (email/password + Google OAuth)
+Routing:   OSRM public API (free)
 ```
 
 ## Project Structure
@@ -62,24 +40,24 @@ Hosting:   Vercel-ready
 devspot/
 ├── src/
 │   ├── components/
+│   │   ├── cmd/           # Command palette (⌘K)
 │   │   ├── filters/       # Filter pills and filter bar
 │   │   ├── layout/        # Header, Sidebar, BottomSheet
-│   │   ├── map/           # DevSpotMap, MapPreview
-│   │   ├── place/         # PlaceCard, PlaceStats, SubmitPlaceModal
-│   │   ├── review/        # ReviewCard, SubmitReviewForm, StarRating
+│   │   ├── map/           # Map components
+│   │   ├── place/         # PlaceCard, SubmitPlaceModal
+│   │   ├── review/        # SubmitReviewForm, StarRating
 │   │   └── ui/            # PriceBar, badges, pills
 │   ├── lib/
-│   │   ├── supabase/      # Supabase client configuration
-│   │   ├── mapbox/        # Mapbox config (ready when token provided)
-│   │   └── utils/         # Geo utilities, filter logic
-│   ├── pages/             # Route pages (Home, PlaceDetail, Profile)
-│   ├── types/             # TypeScript types matching DB schema
-│   ├── App.tsx            # Router setup
+│   │   ├── supabase/      # Client, auth context, data service, DB types
+│   │   └── hooks/         # useTheme
+│   ├── pages/             # Home, PlaceDetail, Profile, SignIn, SignUp, NotFound
+│   ├── App.tsx            # Router + providers
 │   ├── main.tsx           # Entry point
-│   └── index.css          # Global styles + Tailwind + component CSS
-├── PLAN.md                # Agent tracking and decisions
+│   └── index.css          # Global styles (DevSpot theme + shadcn CSS vars)
+├── public/
+├── README.md
 ├── AGENTS.md              # Instructions for AI coding agents
-└── README.md              # This file
+└── PLAN.md                # Agent tracking and decisions
 ```
 
 ## Getting Started
@@ -88,8 +66,7 @@ devspot/
 
 - Node.js 18+
 - pnpm
-- A Supabase account (for backend features)
-- A Mapbox token (for map tiles)
+- A Supabase account
 
 ### Setup
 
@@ -104,43 +81,45 @@ pnpm dev              # http://localhost:5173
 ```env
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_MAPBOX_TOKEN=your_mapbox_token
 ```
 
-### Database
+No Mapbox token required — maps use free CARTO tiles via Maplibre GL.
 
-Run the migration in `supabase/migrations/` to set up:
+## Features
 
-- `places` — with full-text search index
-- `reviews` — one review per user per place
-- `profiles` — extends Supabase auth.users
-- `saves` — favorites/starred places
-- RLS policies for public read / authenticated write
-
-## Features (MVP)
-
-- **Map view** — Dark SVG grid map centered on Luanda with type-colored markers
+- **Map view** — Dark/light MapLibre GL map centered on Luanda with type-colored markers
+- **Command palette** — ⌘K to quickly submit places, toggle language, toggle theme, switch views, filter
 - **Filters** — Filter by vibe (calm/retro/modern), use case (coding/cowork/hackathon/etc.), and type
 - **Search** — Full-text search on place names and tags
-- **Submit place** — 3-step modal (place info → vibe check → dev notes)
-- **Place detail** — Dedicated page with stats, tags, and reviews
+- **Submit place** — 3-step modal with address autocomplete (Nominatim) and geolocation
+- **Place detail** — Dedicated page with stats, tags, reviews, photos, route to spot
 - **Reviews** — Star ratings, WiFi quality, noise level, power outlet availability
+- **Photo uploads** — Upload place photos via Supabase Storage
+- **Routing** — OSRM-based directions from your location to any spot
 - **Authentication** — Email/password + Google OAuth via Supabase
 - **Profiles** — User profiles with submitted places and reviews
+- **i18n** — Portuguese (default) and English
+- **Theme toggle** — Dark mode (default) / light mode with localStorage persistence
+- **Responsive** — Mobile-first, works on all screen sizes
 
 ## Roadmap
 
 ### v1 (MVP)
 - [x] Project scaffold and design system
-- [x] Map view with markers and clustering
+- [x] Map view (MapLibre GL via mapcn)
 - [x] Filter and search
 - [x] Place submission flow
 - [x] Place detail page
-- [ ] Supabase integration
-- [ ] Auth (Supabase Auth)
-- [ ] Reviews
-- [ ] User profiles
-- [ ] Photo uploads
+- [x] Supabase integration
+- [x] Auth (Supabase Auth)
+- [x] Reviews
+- [x] User profiles
+- [x] Photo uploads
+- [x] Routing (OSRM)
+- [x] i18n (PT/EN)
+- [x] Command palette
+- [x] Theme toggle
+- [x] Responsive design
 
 ### v2 (Post-MVP)
 - AI vibe detection via Claude API
@@ -148,15 +127,10 @@ Run the migration in `supabase/migrations/` to set up:
 - Saved lists ("My spots")
 - Place claiming for business owners
 - Hackathon board
-- Mobile app (React Native / Expo)
 - Notifications
 - Analytics dashboard
 
 ---
-
-## Contributing
-
-This is a vibecoding project, but contributions are welcome. Open an issue or PR!
 
 ## License
 

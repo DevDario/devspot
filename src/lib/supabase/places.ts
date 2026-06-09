@@ -1,6 +1,6 @@
 import { supabase } from './client'
 import type { Database } from './database.types'
-import type { Place, Review, User, PlaceType, Vibe, UseCase } from '@/types'
+import type { Place, PlaceWithRating, Review, User, PlaceType, Vibe, UseCase } from '@/types'
 
 type PlacesRow = Database['public']['Tables']['places']['Row']
 type PlacesInsert = Database['public']['Tables']['places']['Insert']
@@ -8,43 +8,8 @@ type ReviewsRow = Database['public']['Tables']['reviews']['Row']
 type ReviewsInsert = Database['public']['Tables']['reviews']['Insert']
 type ProfilesRow = Database['public']['Tables']['profiles']['Row']
 
-export async function fetchPlaces(): Promise<Place[]> {
-  const { data, error } = await supabase
-    .from('places')
-    .select('*')
-    .order('created_at', { ascending: false })
 
-  if (error) throw error
-
-  return ((data || []) as PlacesRow[]).map((p) => ({
-    id: p.id,
-    name: p.name,
-    type: p.type as PlaceType,
-    lat: p.lat,
-    lng: p.lng,
-    address: p.address || '',
-    hours: p.hours || '',
-    price_range: (p.price_range as 1 | 2 | 3) || 2,
-    vibe: p.vibe as Vibe,
-    use_cases: (p.use_cases || []) as UseCase[],
-    tags: p.tags || [],
-    submitted_by: p.submitted_by || '',
-    verified: p.verified || false,
-    created_at: p.created_at || '',
-    updated_at: p.updated_at || '',
-  }))
-}
-
-export async function fetchPlaceById(id: string): Promise<Place | null> {
-  const { data, error } = await supabase
-    .from('places')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error || !data) return null
-
-  const p = data as PlacesRow
+function rowToPlace(p: PlacesRow): Place {
   return {
     id: p.id,
     name: p.name,
@@ -64,16 +29,8 @@ export async function fetchPlaceById(id: string): Promise<Place | null> {
   }
 }
 
-export async function fetchReviewsForPlace(placeId: string): Promise<Review[]> {
-  const { data, error } = await supabase
-    .from('reviews')
-    .select('*')
-    .eq('place_id', placeId)
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-
-  return ((data || []) as ReviewsRow[]).map((r) => ({
+function rowToReview(r: ReviewsRow): Review {
+  return {
     id: r.id,
     place_id: r.place_id || '',
     user_id: r.user_id || '',
@@ -84,7 +41,72 @@ export async function fetchReviewsForPlace(placeId: string): Promise<Review[]> {
     body: r.body || '',
     photos: r.photos || [],
     created_at: r.created_at || '',
-  }))
+  }
+}
+
+export async function fetchPlaces(): Promise<Place[]> {
+  const { data, error } = await supabase
+    .from('places')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+
+  return ((data || []) as PlacesRow[]).map(rowToPlace)
+}
+
+export async function fetchAllReviews(): Promise<Review[]> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*')
+
+  if (error) throw error
+
+  return ((data || []) as ReviewsRow[]).map(rowToReview)
+}
+
+export async function fetchPlacesWithRatings(): Promise<PlaceWithRating[]> {
+  const [places, reviews] = await Promise.all([fetchPlaces(), fetchAllReviews()])
+
+  const ratingsByPlace: Record<string, { sum: number; count: number }> = {}
+  for (const r of reviews) {
+    if (!ratingsByPlace[r.place_id]) ratingsByPlace[r.place_id] = { sum: 0, count: 0 }
+    ratingsByPlace[r.place_id].sum += r.rating
+    ratingsByPlace[r.place_id].count += 1
+  }
+
+  return places.map((p) => {
+    const agg = ratingsByPlace[p.id]
+    return {
+      ...p,
+      avgRating: agg ? agg.sum / agg.count : 0,
+      reviewCount: agg?.count ?? 0,
+    }
+  })
+}
+
+export async function fetchPlaceById(id: string): Promise<Place | null> {
+  const { data, error } = await supabase
+    .from('places')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error || !data) return null
+
+  return rowToPlace(data as PlacesRow)
+}
+
+export async function fetchReviewsForPlace(placeId: string): Promise<Review[]> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*')
+    .eq('place_id', placeId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+
+  return ((data || []) as ReviewsRow[]).map(rowToReview)
 }
 
 export async function createPlace(
@@ -120,8 +142,13 @@ export async function uploadPhoto(
   file: File,
   path: string
 ): Promise<string | null> {
-  const { error } = await supabase.storage.from(bucket).upload(path, file)
-  if (error) throw error
+  const { error: uploadError } = await supabase.storage
+    .from(bucket)
+    .upload(path, file, {
+      contentType: file.type || 'image/jpeg',
+      upsert: false,
+    })
+  if (uploadError) throw uploadError
 
   const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path)
   return urlData?.publicUrl || null
@@ -130,16 +157,17 @@ export async function uploadPhoto(
 export async function fetchPlacePhotos(placeId: string): Promise<string[]> {
   const { data, error } = await supabase.storage
     .from('place-photos')
-    .list(`${placeId}/`)
+    .list(placeId)
 
-  if (error) return []
-
-  const { data: urlData } = supabase.storage.from('place-photos').getPublicUrl('')
-  const base = urlData?.publicUrl?.replace(/\/$/, '') || ''
+  if (error || !data || data.length === 0) return []
 
   return (data || [])
     .filter((f) => !f.id?.endsWith('/'))
-    .map((f) => `${base}/${placeId}/${f.name}`)
+    .map((f) => {
+      const { data: urlData } = supabase.storage.from('place-photos').getPublicUrl(`${placeId}/${f.name}`)
+      return urlData?.publicUrl || ''
+    })
+    .filter(Boolean)
 }
 
 export async function fetchProfileByUsername(username: string): Promise<User | null> {
@@ -173,23 +201,7 @@ export async function fetchPlacesByUserId(userId: string): Promise<Place[]> {
 
   if (error) throw error
 
-  return ((data || []) as PlacesRow[]).map((p) => ({
-    id: p.id,
-    name: p.name,
-    type: p.type as PlaceType,
-    lat: p.lat,
-    lng: p.lng,
-    address: p.address || '',
-    hours: p.hours || '',
-    price_range: (p.price_range as 1 | 2 | 3) || 2,
-    vibe: p.vibe as Vibe,
-    use_cases: (p.use_cases || []) as UseCase[],
-    tags: p.tags || [],
-    submitted_by: p.submitted_by || '',
-    verified: p.verified || false,
-    created_at: p.created_at || '',
-    updated_at: p.updated_at || '',
-  }))
+  return ((data || []) as PlacesRow[]).map(rowToPlace)
 }
 
 export async function fetchReviewsByUserId(userId: string): Promise<Review[]> {
@@ -201,18 +213,7 @@ export async function fetchReviewsByUserId(userId: string): Promise<Review[]> {
 
   if (error) throw error
 
-  return ((data || []) as ReviewsRow[]).map((r) => ({
-    id: r.id,
-    place_id: r.place_id || '',
-    user_id: r.user_id || '',
-    rating: r.rating,
-    wifi_quality: r.wifi_quality as 1 | 2 | 3 | null,
-    noise_level: r.noise_level,
-    power_outlets: r.power_outlets,
-    body: r.body || '',
-    photos: r.photos || [],
-    created_at: r.created_at || '',
-  }))
+  return ((data || []) as ReviewsRow[]).map(rowToReview)
 }
 
 export async function createReview(review: {

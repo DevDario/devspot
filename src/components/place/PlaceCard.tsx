@@ -1,13 +1,13 @@
 import { IconCoffee, IconBuilding } from '@tabler/icons-react'
 import { useNavigate } from 'react-router-dom'
-import type { Place } from '@/types'
+import type { PlaceWithRating } from '@/types'
 import { StarRating } from '@/components/review/StarRating'
 import { PriceBar } from '@/components/ui/PriceBar'
 import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
 import { UseCaseBadge } from '@/components/ui/UseCaseBadge'
 
 interface PlaceCardProps {
-  place: Place
+  place: PlaceWithRating
   selected: boolean
   onClick: (e: React.MouseEvent) => void
 }
@@ -70,8 +70,8 @@ export function PlaceCard({ place, selected, onClick }: PlaceCardProps) {
           </div>
           <div className="flex justify-between items-center">
             <div>
-              <StarRating rating={4.5} />{' '}
-              <span className="text-[#e8c84a] text-[10px]">4.5 (14)</span>
+              <StarRating rating={place.avgRating} />{' '}
+              <span className="text-[#e8c84a] text-[10px]">{place.avgRating.toFixed(1)} ({place.reviewCount})</span>
             </div>
             <span className="text-[10px] text-[#333]">@{place.submitted_by}</span>
           </div>
@@ -80,4 +80,3 @@ export function PlaceCard({ place, selected, onClick }: PlaceCardProps) {
     </div>
   )
 }
-
