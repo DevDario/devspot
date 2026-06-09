@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { IconArrowLeft, IconBuilding, IconCoffee, IconRoute } from '@tabler/icons-react'
+import { IconArrowLeft, IconBuilding, IconCoffee, IconRoute, IconTerminal2 } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import { useState, useCallback } from 'react'
-import type { Place } from '@/types'
+import { useState, useCallback, useEffect } from 'react'
+import type { Place, Review } from '@/types'
 import { StarRating } from '@/components/review/StarRating'
 import { PriceBar } from '@/components/ui/PriceBar'
 import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
@@ -12,41 +12,46 @@ import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { fetchRoute, formatDuration, formatDistance } from '@/lib/utils/osrm'
 import type { RouteData } from '@/lib/utils/osrm'
-
-const MOCK_PLACE: Place = {
-  id: '1',
-  name: 'Café Marginal',
-  type: 'café',
-  vibe: 'calm',
-  price_range: 2,
-  hours: '07–22',
-  lat: -8.838,
-  lng: 13.234,
-  address: 'Rua Marginal, Luanda',
-  use_cases: ['coding', 'meetings'],
-  tags: ['wifi', 'outlets', 'AC'],
-  verified: true,
-  submitted_by: 'dev_kafu',
-  created_at: '2026-01-15T10:00:00Z',
-  updated_at: '2026-06-01T10:00:00Z',
-}
+import { fetchPlaceById, fetchReviewsForPlace, fetchPlacePhotos } from '@/lib/supabase/places'
+import { useTheme } from '@/lib/hooks/useTheme'
 
 export function PlaceDetailPage() {
   const { t } = useTranslation()
+  const { theme } = useTheme()
   const { id } = useParams()
   const navigate = useNavigate()
-  const place = MOCK_PLACE
+
+  const [place, setPlace] = useState<Place | null>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [photos, setPhotos] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [route, setRoute] = useState<RouteData | null>(null)
   const [routing, setRouting] = useState(false)
   const [routeError, setRouteError] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (!id) return
+    setLoading(true)
+    Promise.all([
+      fetchPlaceById(id),
+      fetchReviewsForPlace(id),
+      fetchPlacePhotos(id),
+    ])
+      .then(([p, r, ph]) => {
+        if (!p) { setError('Place not found'); return }
+        setPlace(p)
+        setReviews(r)
+        setPhotos(ph)
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [id])
+
   const handleRoute = useCallback(async () => {
-    setRoute(null)
-    setRouteError(null)
-    if (!navigator.geolocation) {
-      setRouteError(t('map.error_location'))
-      return
-    }
+    if (!place) return
+    setRoute(null); setRouteError(null)
+    if (!navigator.geolocation) { setRouteError(t('map.error_location')); return }
     setRouting(true)
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -54,19 +59,38 @@ export function PlaceDetailPage() {
         const to: [number, number] = [place.lng, place.lat]
         const result = await fetchRoute(from, to)
         setRouting(false)
-        if (result) {
-          setRoute(result)
-        } else {
-          setRouteError(t('map.error_route'))
-        }
+        if (result) { setRoute(result) } else { setRouteError(t('map.error_route')) }
       },
-      () => {
-        setRouting(false)
-        setRouteError(t('map.error_location'))
-      },
+      () => { setRouting(false); setRouteError(t('map.error_location')) },
       { enableHighAccuracy: true }
     )
   }, [place, t])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-muted" />
+      </div>
+    )
+  }
+
+  if (error || !place) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="text-center">
+          <IconTerminal2 size={32} className="mx-auto mb-3 text-dim" />
+          <p className="text-[12px] text-muted mb-3">{error || 'Place not found'}</p>
+          <button onClick={() => navigate('/')} className="text-[11px] text-txt border border-border rounded-[4px] px-3 py-1.5 bg-surf2 cursor-pointer">
+            back to map
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const avgRating = reviews.length
+    ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length)
+    : 0
 
   return (
     <div className="min-h-screen bg-bg">
@@ -105,8 +129,8 @@ export function PlaceDetailPage() {
           <div className="flex items-center gap-3 mb-3 bg-surf2 rounded-[6px] p-3">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-muted">{t('place.reviews')}</span>
-              <StarRating rating={4.5} />
-              <span className="text-[#e8c84a] text-[11px]">4.5 (14)</span>
+              <StarRating rating={avgRating} />
+              <span className="text-star text-[11px]">{avgRating.toFixed(1)} ({reviews.length})</span>
             </div>
           </div>
 
@@ -130,7 +154,7 @@ export function PlaceDetailPage() {
         <div className="bg-surf border border-border rounded-[10px] p-5 mb-4">
           <h2 className="text-[14px] text-txt mb-3">{t('place.location')}</h2>
           <div className="h-[180px] rounded-[6px] border border-border overflow-hidden">
-            <Map center={[place.lng, place.lat]} zoom={15} className="h-full w-full">
+            <Map theme={theme} center={[place.lng, place.lat]} zoom={15} className="h-full w-full">
               <MapControls showZoom showCompass />
               <MapMarker longitude={place.lng} latitude={place.lat}>
                 <MarkerContent>
@@ -158,30 +182,49 @@ export function PlaceDetailPage() {
                 </span>
               )}
               <Button size="sm" onClick={handleRoute} disabled={routing} className="text-[10px] h-6 gap-1">
-                {routing ? (
-                  <Loader2 className="size-2.5 animate-spin" />
-                ) : (
-                  <IconRoute size={10} />
-                )}
+                {routing ? <Loader2 className="size-2.5 animate-spin" /> : <IconRoute size={10} />}
                 {routing ? t('map.routing') : t('map.route_to')}
               </Button>
             </div>
           </div>
-          {routeError && (
-            <p className="text-[10px] text-red-400 mt-1">{routeError}</p>
-          )}
+          {routeError && <p className="text-[10px] text-red-400 mt-1">{routeError}</p>}
         </div>
+
+        {photos.length > 0 && (
+          <div className="bg-surf border border-border rounded-[10px] p-5 mb-4">
+            <h2 className="text-[14px] text-txt mb-3">Photos</h2>
+            <div className="flex gap-2 overflow-x-auto">
+              {photos.map((url, i) => (
+                <img key={i} src={url} alt={`${place.name} photo ${i + 1}`} className="h-24 w-24 rounded-[6px] object-cover border border-border flex-shrink-0" />
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="bg-surf border border-border rounded-[10px] p-5 mb-4">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-[14px] text-txt">{t('place.reviews')}</h2>
-            <button className="bg-[#333] border-none text-[#ddd] rounded-[5px] px-3 py-1.5 text-[11px] cursor-pointer">
+            <button className="bg-[#555] border-none text-txt rounded-[5px] px-3 py-1.5 text-[11px] cursor-pointer">
               {t('place.write_review')}
             </button>
           </div>
-          <div className="text-center py-8 text-muted text-[11px]">
-            {t('place.no_reviews')}
-          </div>
+          {reviews.length === 0 ? (
+            <div className="text-center py-8 text-muted text-[11px]">
+              {t('place.no_reviews')}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {reviews.map((r) => (
+                <div key={r.id} className="bg-surf2 border border-border rounded-[6px] p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <StarRating rating={r.rating} />
+                    <span className="text-[10px] text-dim">{new Date(r.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {r.body && <p className="text-[11px] text-muted">{r.body}</p>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
