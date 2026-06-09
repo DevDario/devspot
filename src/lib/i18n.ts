@@ -16,7 +16,7 @@ const pt = {
     all: 'tudo',
   },
   place: {
-    verified: '✓ verificado',
+    verified: 'verificado',
     submitted_by: 'por',
     no_results: 'nenhum lugar encontrado',
     reviews: 'avaliações',
@@ -74,7 +74,7 @@ const pt = {
   },
   map: {
     locate: 'Encontrar minha localização',
-    route_to: '🔄 Rota até aqui',
+    route_to: 'Rota até aqui',
     from_location: 'A partir da minha localização',
     routing: 'A calcular rota...',
     error_location: 'Erro ao obter localização',
@@ -118,7 +118,7 @@ const en = {
     all: 'all',
   },
   place: {
-    verified: '✓ verified',
+    verified: 'verified',
     submitted_by: 'by',
     no_results: 'no places found',
     reviews: 'Reviews',
@@ -176,7 +176,7 @@ const en = {
   },
   map: {
     locate: 'Find my location',
-    route_to: '🔄 Route here',
+    route_to: 'Route here',
     from_location: 'From my location',
     routing: 'Calculating route...',
     error_location: 'Error getting location',
