@@ -1,7 +1,22 @@
-import { useMemo } from 'react'
-import { IconBuilding, IconCoffee } from '@tabler/icons-react'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { IconBuilding, IconCoffee, IconRoute } from '@tabler/icons-react'
+import {
+  Map,
+  MapControls,
+  MapMarker,
+  MarkerContent,
+  MarkerTooltip,
+  MapRoute,
+} from '@/components/ui/map'
+import { Button } from '@/components/ui/button'
+import { Loader2 } from 'lucide-react'
 import type { Place } from '@/types'
-import { toPercent } from '@/lib/utils/geo'
+import { useUserLocation } from '@/lib/hooks/useUserLocation'
+import { fetchRoute, formatDuration, formatDistance } from '@/lib/utils/osrm'
+import type { RouteData } from '@/lib/utils/osrm'
+import { useTranslation } from 'react-i18next'
+
+const LUANDA_CENTER: [number, number] = [13.234, -8.838]
 
 interface DevSpotMapProps {
   places: Place[]
@@ -9,16 +24,7 @@ interface DevSpotMapProps {
   onSelectPlace: (place: Place | null) => void
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  café: '#b0b0b0',
-  cowork: '#888',
-  esplanada: '#666',
-  restaurant: '#888',
-  library: '#888',
-  other: '#888',
-}
-
-const TYPE_ICONS: Record<string, typeof IconBuilding | typeof IconCoffee> = {
+const TYPE_ICONS: Record<string, typeof IconCoffee | typeof IconBuilding> = {
   cowork: IconBuilding,
   café: IconCoffee,
   esplanada: IconCoffee,
@@ -27,104 +33,185 @@ const TYPE_ICONS: Record<string, typeof IconBuilding | typeof IconCoffee> = {
   other: IconCoffee,
 }
 
+const MARKER_COLORS: Record<string, string> = {
+  café: '#b0b0b0',
+  cowork: '#888',
+  esplanada: '#666',
+}
+
+function getMarkerColor(type: string): string {
+  return MARKER_COLORS[type] || '#888'
+}
+
+function getMarkerIcon(type: string) {
+  return TYPE_ICONS[type] || IconCoffee
+}
+
 export function DevSpotMap({ places, selectedPlace, onSelectPlace }: DevSpotMapProps) {
-  const svgLines = useMemo(
-    () => (
-      <svg viewBox="0 0 700 500" preserveAspectRatio="none" className="absolute inset-0 w-full h-full opacity-[0.06]">
-        <line x1="0" y1="160" x2="700" y2="160" stroke="#fff" strokeWidth="1.5" />
-        <line x1="0" y1="340" x2="700" y2="340" stroke="#fff" strokeWidth="1" />
-        <line x1="160" y1="0" x2="160" y2="500" stroke="#fff" strokeWidth="1.5" />
-        <line x1="500" y1="0" x2="500" y2="500" stroke="#fff" strokeWidth="1" />
-        <line x1="60" y1="60" x2="640" y2="440" stroke="#fff" strokeWidth="0.5" />
-        <circle cx="350" cy="250" r="100" stroke="#fff" fill="none" strokeWidth="0.5" />
-      </svg>
-    ),
-    []
-  )
+  const { t } = useTranslation()
+  const userLoc = useUserLocation()
+  const [route, setRoute] = useState<RouteData | null>(null)
+  const [routing, setRouting] = useState(false)
+  const [routeError, setRouteError] = useState<string | null>(null)
+  const mapRef = useRef<React.ComponentRef<typeof Map>>(null)
+
+  const handleRouteClick = useCallback(async () => {
+    if (!selectedPlace) return
+    setRoute(null)
+    setRouteError(null)
+
+    if (!userLoc.latitude || !userLoc.longitude) {
+      userLoc.requestLocation()
+      return
+    }
+
+    setRouting(true)
+    const from: [number, number] = [userLoc.longitude, userLoc.latitude]
+    const to: [number, number] = [selectedPlace.lng, selectedPlace.lat]
+    const result = await fetchRoute(from, to)
+    setRouting(false)
+
+    if (result) {
+      setRoute(result)
+      const map = mapRef.current
+      if (map && typeof map.fitBounds === 'function') {
+        const coords = result.coordinates
+        const minLng = Math.min(...coords.map((c) => c[0]), to[0])
+        const maxLng = Math.max(...coords.map((c) => c[0]), to[0])
+        const minLat = Math.min(...coords.map((c) => c[1]), to[1])
+        const maxLat = Math.max(...coords.map((c) => c[1]), to[1])
+        map.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ] as [[number, number], [number, number]],
+          { padding: 80, duration: 1000 }
+        )
+      }
+    } else {
+      setRouteError(t('map.error_route'))
+    }
+  }, [selectedPlace, userLoc, t])
+
+  const hasUserLocation = userLoc.latitude !== null && userLoc.longitude !== null
+
+  const center = useMemo((): [number, number] => {
+    if (selectedPlace) return [selectedPlace.lng, selectedPlace.lat]
+    if (hasUserLocation) return [userLoc.longitude!, userLoc.latitude!]
+    return LUANDA_CENTER
+  }, [selectedPlace, userLoc, hasUserLocation])
 
   return (
-    <div className="flex-1 relative overflow-hidden map-bg">
-      {svgLines}
-      <div className="absolute top-2.5 left-3 text-dim text-[10px] flex items-center gap-1 z-10">
-        <IconMapPin size={11} />
-        Luanda, Angola
-      </div>
-      {places.map((place) => {
-        const { x, y } = toPercent(place.lng, place.lat)
-        const isSel = selectedPlace?.id === place.id
-        const Icon = TYPE_ICONS[place.type] || IconCoffee
-        const sz = isSel ? 36 : 26
-        const col = isSel ? '#ccc' : '#555'
+    <div className="flex-1 relative">
+      <Map
+        ref={mapRef as never}
+        center={center}
+        zoom={hasUserLocation ? 13 : 11}
+        className="h-full w-full"
+      >
+        <MapControls showZoom showCompass showLocate showFullscreen />
 
-        return (
-          <div
-            key={place.id}
-            className="absolute cursor-pointer"
-            style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)', zIndex: isSel ? 10 : 5 }}
-            onClick={(e) => {
-              e.stopPropagation()
-              onSelectPlace(isSel ? null : place)
-            }}
+        {places.map((place) => {
+          const Icon = getMarkerIcon(place.type)
+          const color = getMarkerColor(place.type)
+          const isSel = selectedPlace?.id === place.id
+
+          return (
+            <MapMarker
+              key={place.id}
+              longitude={place.lng}
+              latitude={place.lat}
+              onClick={() => onSelectPlace(isSel ? null : place)}
+            >
+              <MarkerContent>
+                <div
+                  className={`flex items-center justify-center rounded-full border-2 transition-all cursor-pointer`}
+                  style={{
+                    width: isSel ? 36 : 26,
+                    height: isSel ? 36 : 26,
+                    background: isSel ? '#222' : '#1a1a1a',
+                    borderColor: isSel ? '#aaa' : '#444',
+                  }}
+                >
+                  <Icon size={isSel ? 14 : 11} color={color} />
+                </div>
+              </MarkerContent>
+              <MarkerTooltip>{place.name}</MarkerTooltip>
+            </MapMarker>
+          )
+        })}
+
+        {hasUserLocation && (
+          <MapMarker
+            longitude={userLoc.longitude!}
+            latitude={userLoc.latitude!}
           >
-            <div
-              className="flex items-center justify-center rounded-full transition-all"
-              style={{
-                width: sz,
-                height: sz,
-                background: isSel ? '#222' : '#1a1a1a',
-                border: isSel ? '2px solid #aaa' : '1px solid #444',
-              }}
-            >
-              <Icon size={isSel ? 14 : 11} color={col} />
-            </div>
-            {isSel && (
-              <div className="absolute -top-[22px] left-1/2 -translate-x-1/2 bg-[#1a1a1a] border border-[#333] rounded-[4px] px-[7px] py-[2px] whitespace-nowrap text-[10px] text-[#bbb]">
-                {place.name}
-              </div>
-            )}
-          </div>
-        )
-      })}
-      <div className="absolute bottom-3 right-3 bg-[rgba(0,0,0,0.7)] border border-[#222] rounded-[6px] px-3 py-2 text-[10px] text-[#555]">
-        {Object.entries(TYPE_COLORS).map(([type, color]) => (
-          <div key={type} className="flex items-center gap-1.5 mb-1 last:mb-0">
-            <span className="w-[7px] h-[7px] rounded-full inline-block" style={{ background: color }} />
-            {type}
-          </div>
-        ))}
-      </div>
+            <MarkerContent>
+              <div className="size-4 rounded-full bg-blue-500 border-2 border-white shadow-lg animate-pulse" />
+            </MarkerContent>
+            <MarkerTooltip>{t('map.locate')}</MarkerTooltip>
+          </MapMarker>
+        )}
+
+        {route && route.coordinates.length >= 2 && (
+          <MapRoute
+            coordinates={route.coordinates}
+            color="#6366f1"
+            width={4}
+            opacity={0.85}
+          />
+        )}
+      </Map>
+
       {selectedPlace && (
-        <div className="absolute bottom-3 left-3 bg-[#141414] border border-[#2a2a2a] rounded-[8px] p-3 w-[220px] z-10">
-          <div className="flex justify-between mb-[7px]">
-            {(() => {
-              const Icon = TYPE_ICONS[selectedPlace.type] || IconCoffee
-              return <Icon size={20} color="#888" />
-            })()}
-            <button
-              onClick={() => onSelectPlace(null)}
-              className="bg-none border-none text-[#444] text-[15px] leading-none cursor-pointer"
+        <div className="absolute bottom-4 left-3 z-10 flex flex-col gap-2 max-w-[240px]">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-[8px] p-3">
+            <div className="text-[13px] text-[#d0d0d0] mb-0.5">{selectedPlace.name}</div>
+            <div className="text-[10px] text-[#555] mb-2">
+              {selectedPlace.type} · {selectedPlace.hours}
+            </div>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {selectedPlace.tags.slice(0, 3).map((t) => (
+                <span key={t} className="ds-tag">{t}</span>
+              ))}
+            </div>
+            <Button
+              size="sm"
+              onClick={handleRouteClick}
+              disabled={routing}
+              className="w-full gap-1.5 text-[11px] h-7"
             >
-              ✕
-            </button>
+              {routing ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <IconRoute size={12} />
+              )}
+              {routing ? t('map.routing') : t('map.route_to')}
+            </Button>
           </div>
-          <div className="text-[13px] text-[#d0d0d0] mb-0.5">{selectedPlace.name}</div>
-          <div className="text-[10px] text-[#555] mb-[7px]">{selectedPlace.type} · {selectedPlace.hours}</div>
-          <div className="flex flex-wrap gap-[3px]">
-            {selectedPlace.tags.slice(0, 3).map((t) => (
-              <span key={t} className="ds-tag">{t}</span>
-            ))}
-          </div>
+
+          {route && (
+            <div className="bg-[#141414] border border-[#2a2a2a] rounded-[8px] p-2.5 text-[11px] text-[#bbb]">
+              <div className="flex gap-3">
+                <span>{formatDistance(route.distance)}</span>
+                <span>{formatDuration(route.duration)}</span>
+              </div>
+            </div>
+          )}
+
+          {routeError && (
+            <div className="bg-[#141414] border border-red-800 rounded-[8px] p-2 text-[10px] text-red-400">
+              {routeError}
+            </div>
+          )}
+
+          {!hasUserLocation && selectedPlace && !routing && !route && (
+            <p className="text-[10px] text-dim ml-1">
+              {t('map.from_location')}
+            </p>
+          )}
         </div>
       )}
     </div>
-  )
-}
-
-function IconMapPin({ size }: { size: number }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
   )
 }
