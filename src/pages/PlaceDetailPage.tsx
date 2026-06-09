@@ -127,6 +127,7 @@ export function PlaceDetailPage() {
       await deletePlace(id)
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['places'] })
       navigate('/')
     },
   })

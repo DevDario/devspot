@@ -129,8 +129,8 @@ Ctrl/Cmd+K opens overlay with 18 functional actions:
 - [x] @tanstack/react-query installed
 - [x] QueryClientProvider wrapping app
 - [x] useQuery for places, reviews, profile data
-- [x] useMutation for createPlace, createReview
-- [x] Cache invalidation on mutations for auto-refresh
+- [x] useMutation for createPlace, createReview, deletePlace, deleteReview
+- [x] Cache invalidation on all mutations for auto-refresh
 
 ### Form Validation
 - [x] Zod schemas (placeSchema, reviewSchema)
@@ -146,16 +146,25 @@ Ctrl/Cmd+K opens overlay with 18 functional actions:
 
 ### Pages
 - [x] Home (TanStack Query, real ratings, cmd palette, auth guard)
-- [x] PlaceDetailPage (TanStack Query, real reviews, photos, single back button)
-- [x] SignInPage (i18n)
-- [x] SignUpPage (i18n)
-- [x] ProfilePage (TanStack Query, real places with ratings)
+- [x] PlaceDetailPage (TanStack Query, real reviews, photos, reviews CRUD, place delete, route)
+- [x] SignInPage (i18n, email/password + Google OAuth)
+- [x] SignUpPage (i18n, username field, auto-profile creation)
+- [x] ProfilePage (TanStack Query, real places with ratings, inline bio editing, sign-out)
+
+### Features
+- [x] WiFi/noise/power badges on review cards
+- [x] Edit/delete own reviews (pre-filled form, confirm dialog)
+- [x] Delete own places (confirm dialog, cached invalidation)
+- [x] Profile auto-creation (DB trigger + client-side upsert)
+- [x] Mobile hamburger menu (theme, K, lang, view, profile, sign-out, submit)
+- [x] Profile icon in navbar (links to /profile/{username})
+- [x] Logout overlay (centered message, fade-out animation)
+- [x] Security audit completed (no service_role, no user_metadata in RLS, no SECURITY DEFINER)
+- [x] Security patches applied (RLS for all tables + storage, CSP headers, file validation, npm audit zero vulns)
 
 ### Remaining
 - [ ] Seed data (sample places/reviews for Luanda)
 - [ ] Code splitting for maplibre-gl (large chunk warning)
-- [ ] Review display: show wifi/noise/power details
-- [ ] Edit/delete own places and reviews
 - [ ] Real-time updates via Supabase subscriptions
 
 ## Do's
@@ -178,10 +187,9 @@ Ctrl/Cmd+K opens overlay with 18 functional actions:
 - Don't hardcode strings — always use t()
 
 ## Current Status
-Production-ready MVP with TanStack Query, Zod validation, real Supabase data, and responsive UI. mapcn/MapLibre GL map with theme-synced basemaps. OSRM routing. Full i18n (Portuguese default, English toggle) with no hardcoded strings. Command palette (Ctrl+K) with 18 actions and i18n labels. Dark/light theme with header toggle button and persistence. Auth with login/signup/Google OAuth. Photo uploads to Supabase Storage. Address input with Nominatim geocoding. Place ratings calculated from real reviews.
+Production-ready MVP with TanStack Query, Zod validation, real Supabase data, and responsive UI. mapcn/MapLibre GL map with theme-synced basemaps. OSRM routing. Full i18n (Portuguese default, English toggle) with no hardcoded strings. Command palette (Ctrl+K) with 18 actions and i18n labels. Dark/light theme with header toggle button and persistence. Auth with login/signup/Google OAuth. Photo uploads to Supabase Storage. Address input with Nominatim geocoding. Place ratings calculated from real reviews. WiFi/noise/power badges on reviews. Edit/delete own content. Mobile-responsive hamburger menu. Logout animation. Security audited and patched.
 
 ## Known Issues
 - Chunk size warning for maplibre-gl (needs code splitting)
-- Review display missing wifi/noise/power details (only rating + body shown)
-- No edit/delete for own places/reviews
 - No seed data for Luanda places in the database
+- Supabase Storage buckets need manual creation (migration provided)
