@@ -1,4 +1,5 @@
 import { IconCoffee, IconBuilding } from '@tabler/icons-react'
+import { useNavigate } from 'react-router-dom'
 import type { Place } from '@/types'
 import { StarRating } from '@/components/review/StarRating'
 import { PriceBar } from '@/components/ui/PriceBar'
@@ -30,6 +31,7 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 export function PlaceCard({ place, selected, onClick }: PlaceCardProps) {
+  const navigate = useNavigate()
   const Icon = TYPE_ICONS[place.type] || IconCoffee
   const color = TYPE_COLORS[place.type] || '#888'
 
@@ -38,7 +40,10 @@ export function PlaceCard({ place, selected, onClick }: PlaceCardProps) {
       className={`ds-card px-4 py-[14px] border-b border-border ${
         selected ? 'border-l-2 border-[#888] bg-[rgba(255,255,255,0.02)]' : 'border-l-2 border-transparent'
       }`}
-      onClick={onClick}
+      onClick={(e) => {
+        onClick(e)
+        navigate(`/place/${place.id}`)
+      }}
     >
       <div className="flex gap-2.5">
         <div className="w-9 h-9 bg-surf2 border border-border rounded-[7px] flex items-center justify-center flex-shrink-0">
